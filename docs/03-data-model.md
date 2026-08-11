@@ -8,19 +8,25 @@
 ```sql
 -- Пользователь (по факту один, но пусть будет таблица)
 CREATE TABLE users (
-  telegram_id     INTEGER PRIMARY KEY,
-  timezone        TEXT NOT NULL DEFAULT 'Europe/Warsaw',
-  remind_at       TEXT NOT NULL DEFAULT '07:30',   -- HH:MM локального времени
-  evening_ping_at TEXT             DEFAULT '20:00',
-  level           TEXT NOT NULL DEFAULT 'base',    -- base | strong
-  has_pullup_bar  INTEGER NOT NULL DEFAULT 0,
-  has_band        INTEGER NOT NULL DEFAULT 0,
-  block_start     TEXT NOT NULL,                   -- дата начала 4-недельного блока
-  paused_until    TEXT,
-  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+  telegram_id      INTEGER PRIMARY KEY,
+  timezone         TEXT NOT NULL DEFAULT 'Europe/Warsaw',
+  remind_at        TEXT NOT NULL DEFAULT '07:30',  -- HH:MM локального времени
+  evening_ping_at  TEXT             DEFAULT '20:00',
+  session_minutes  INTEGER NOT NULL DEFAULT 15,    -- бюджет времени: 10 | 15 | 20 | 25
+  mini_reminders   INTEGER NOT NULL DEFAULT 0,     -- напоминать про /mini днём
+  height_cm        INTEGER,                        -- 190
+  weight_kg        REAL,                           -- 73
+  birth_year       INTEGER,                        -- 1996
+  level            TEXT NOT NULL DEFAULT 'base',   -- base | strong (стартовый уровень лестниц)
+  has_pullup_bar   INTEGER NOT NULL DEFAULT 0,
+  has_band         INTEGER NOT NULL DEFAULT 0,
+  has_backpack     INTEGER NOT NULL DEFAULT 1,     -- рюкзак с книгами = регулируемый вес
+  block_start      TEXT NOT NULL,                  -- дата начала 4-недельного блока
+  paused_until     TEXT,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Доступные гири: 16, 24 …
+-- Доступные гири. Стартовая конфигурация: две по 5 кг
 CREATE TABLE kettlebells (
   user_id INTEGER NOT NULL REFERENCES users(telegram_id),
   weight  REAL    NOT NULL,
@@ -34,7 +40,9 @@ CREATE TABLE exercises (
   name        TEXT NOT NULL,
   group_code  TEXT NOT NULL,             -- neck | scap | row | posterior | press | legs | core | mobility
   pattern     TEXT NOT NULL,             -- hinge | squat | pull | push | carry | isometric | stretch | mobility
-  equipment   TEXT NOT NULL,             -- none | kettlebell | band | bar | wall
+  equipment   TEXT NOT NULL,             -- none | kettlebell | band | bar | wall | backpack
+  chain       TEXT,                      -- push | row | squat | hinge | core — лестница прогрессии
+  chain_level INTEGER,                   -- позиция в лестнице (1 = легче всего)
   unit        TEXT NOT NULL,             -- reps | seconds | meters
   unilateral  INTEGER NOT NULL DEFAULT 0,
   cues        TEXT NOT NULL,             -- краткая техника
@@ -47,7 +55,7 @@ CREATE TABLE exercises (
 -- Шаблоны дней: W-A … W-G
 CREATE TABLE templates (
   code        TEXT PRIMARY KEY,          -- W-A
-  title       TEXT NOT NULL,             -- «Тяга и задняя цепь»
+  title       TEXT NOT NULL,             -- «Спина и осанка»
   weekday     INTEGER NOT NULL,          -- 1=Пн … 7=Вс
   intensity   TEXT NOT NULL,             -- heavy | medium | light | recovery
   est_minutes INTEGER NOT NULL
@@ -66,14 +74,20 @@ CREATE TABLE template_items (
   PRIMARY KEY (template_code, position)
 );
 
--- Текущая рабочая нагрузка по упражнению (состояние прогрессии)
+-- Текущая нагрузка по лестнице движения (состояние прогрессии).
+-- Ключ — не упражнение, а цепочка: прогрессируем «тягу», а не конкретный её вариант.
 CREATE TABLE progression (
   user_id       INTEGER NOT NULL REFERENCES users(telegram_id),
-  exercise_code TEXT NOT NULL REFERENCES exercises(code),
-  weight        REAL,                    -- NULL для упражнений с весом тела
+  chain         TEXT NOT NULL,           -- push | row | squat | hinge | core | scap …
+  exercise_code TEXT NOT NULL REFERENCES exercises(code),  -- текущий вариант
+  chain_level   INTEGER NOT NULL,        -- текущая ступень лестницы
+  tempo         TEXT NOT NULL DEFAULT 'normal',  -- normal | slow | pause
+  weight        REAL,                    -- 5 | 10 | вес рюкзака | NULL для веса тела
   current_reps  INTEGER NOT NULL,        -- текущая цель по повторам в подходе
+  hard_streak   INTEGER NOT NULL DEFAULT 0,  -- подряд тренировок с фидбэком «тяжело»
+  easy_streak   INTEGER NOT NULL DEFAULT 0,  -- подряд выполнено по верхней границе
   updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  PRIMARY KEY (user_id, exercise_code)
+  PRIMARY KEY (user_id, chain)
 );
 
 -- Сессия = одна тренировка одного дня
@@ -82,15 +96,19 @@ CREATE TABLE sessions (
   user_id       INTEGER NOT NULL REFERENCES users(telegram_id),
   local_date    TEXT NOT NULL,           -- YYYY-MM-DD
   template_code TEXT NOT NULL REFERENCES templates(code),
+  kind          TEXT NOT NULL DEFAULT 'main',  -- main | mini (микро-сессия по /mini)
   week_in_block INTEGER NOT NULL,        -- 1..4, где 4 — разгрузка
   status        TEXT NOT NULL,           -- planned | in_progress | done | skipped
   neck_score    INTEGER,                 -- 0 нет боли … 3 сильно
   rpe           INTEGER,                 -- субъективная тяжесть 1..10
   started_at    TEXT,
   finished_at   TEXT,
-  note          TEXT,
-  UNIQUE (user_id, local_date)
+  note          TEXT
 );
+
+-- Основная тренировка — одна в день. Микро-сессий (/mini) может быть сколько угодно.
+CREATE UNIQUE INDEX idx_sessions_main_per_day
+  ON sessions(user_id, local_date) WHERE kind = 'main';
 
 -- Факт по подходам
 CREATE TABLE session_sets (
@@ -142,10 +160,13 @@ CREATE INDEX idx_sets_exercise ON session_sets(exercise_code);
 ## Ключевые решения
 
 **Почему `progression` отдельной таблицей, а не вычисляется из логов.**
-Вычислять текущую цель из истории — красиво, но каждый запрос превращается в агрегацию по всей истории плюс правила деload. Отдельная таблица делает состояние явным, отлаживаемым и правимым руками (`UPDATE progression SET weight = 24`). Логи остаются источником истины для аналитики, `progression` — производная, которую всегда можно пересобрать скриптом.
+Вычислять текущую цель из истории — красиво, но каждый запрос превращается в агрегацию по всей истории плюс правила деload. Отдельная таблица делает состояние явным, отлаживаемым и правимым руками (`UPDATE progression SET chain_level = 3`). Логи остаются источником истины для аналитики, `progression` — производная, которую всегда можно пересобрать скриптом.
 
-**Почему у сессии `UNIQUE (user_id, local_date)`.**
-Одна тренировка в день. Если хочется вторую — это `note` к существующей, а не вторая строка. Упрощает streak и отчёты.
+**Почему ключ прогрессии — цепочка, а не упражнение.**
+Вес зафиксирован на 5 кг, поэтому нагрузка растёт сменой варианта: отжимания от стола → с пола → с паузой. Если хранить состояние по коду упражнения, при каждом переходе оно теряется. Цепочка (`push`, `row`, `squat`, `hinge`, `core`) — стабильная сущность, а конкретное упражнение и темп — её текущее состояние. Подробнее — [05-training-program.md](05-training-program.md).
+
+**Почему основная тренировка одна в день.**
+Частичный уникальный индекс по `kind = 'main'`: одна утренняя сессия формирует streak и прогрессию. Микро-сессии `/mini` пишутся в ту же таблицу с `kind = 'mini'`, но на прогрессию не влияют и в объём тренировок не входят — иначе три раза размяв шею за день, получишь ложное «выполнено».
 
 **`neck_safe`.**
 Флаг на упражнении, а не на группе: гиревой жим над головой в день острой боли в шее — плохая идея, а тяга в наклоне с опорой — нормальная. День с `neck_score >= 2` фильтрует набор по этому флагу.

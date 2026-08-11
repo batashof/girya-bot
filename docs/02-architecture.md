@@ -55,7 +55,7 @@ girya-bot/
 │   │   └── ui/              клавиатуры и тексты
 │   ├── domain/              ← чистая логика, без Workers и Telegram
 │   │   ├── program.ts       резолвер дня недели → тренировка
-│   │   ├── progression.ts   двойная прогрессия, деload
+│   │   ├── progression.ts   лестницы рычага, темп, деload
 │   │   ├── adaptation.ts    реакция на боль/RPE
 │   │   └── types.ts
 │   ├── data/
