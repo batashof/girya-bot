@@ -17,6 +17,7 @@ function resolve(options: {
   date?: string;
   user?: Partial<ReturnType<typeof defaultUser>>;
   levels?: Partial<Record<Chain, number>>;
+  swaps?: [string, string][];
 }) {
   const progressionOverrides: Partial<Record<Chain, { chainLevel: number }>> = {};
   for (const [chain, level] of Object.entries(options.levels ?? {})) {
@@ -29,6 +30,7 @@ function resolve(options: {
     exercises,
     chainSteps,
     progression: baseProgression(progressionOverrides),
+    swaps: new Map(options.swaps ?? []),
   });
 }
 

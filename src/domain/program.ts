@@ -26,6 +26,8 @@ export interface ResolveInput {
   exercises: Map<string, Exercise>;
   chainSteps: ChainStep[];
   progression: Map<Chain, ProgressionState>;
+  /** Ручные замены пользователя: код из плана → код, который он делает вместо (docs/06). */
+  swaps: Map<string, string>;
 }
 
 /** Очередь на вылет, когда день не влезает в бюджет: с конца списка (ADR-012). */
@@ -109,8 +111,8 @@ function resolveItem(item: TemplateItem, input: ResolveInput, deload: boolean): 
     if (step === null) {
       return null;
     }
-    const exercise = input.exercises.get(step.exerciseCode);
-    if (exercise === undefined) {
+    const exercise = applySwap(step.exerciseCode, input);
+    if (exercise === null) {
       return null;
     }
     const state = input.progression.get(item.followChain);
@@ -118,6 +120,7 @@ function resolveItem(item: TemplateItem, input: ResolveInput, deload: boolean): 
       position: item.position,
       block: item.block,
       exercise,
+      chain: item.followChain,
       variant: step.variant,
       sets,
       // Цель по повторам ведёт прогрессия, а не шаблон: шаблон задаёт только рамку.
@@ -130,7 +133,7 @@ function resolveItem(item: TemplateItem, input: ResolveInput, deload: boolean): 
     };
   }
 
-  const exercise = pickAvailable(item.exerciseCode, input);
+  const exercise = applySwap(item.exerciseCode, input);
   if (exercise === null) {
     return null;
   }
@@ -138,6 +141,7 @@ function resolveItem(item: TemplateItem, input: ResolveInput, deload: boolean): 
     position: item.position,
     block: item.block,
     exercise,
+    chain: null,
     variant: null,
     sets,
     target: item.targetMin,
@@ -170,6 +174,22 @@ function currentStep(chain: Chain, input: ResolveInput): ChainStep | null {
   );
 
   return available.at(-1) ?? null;
+}
+
+/**
+ * Ручная замена пользователя, если она есть и доступна по инвентарю, иначе исходный код.
+ * Замена живёт в отдельной таблице и действует 7 дней (docs/06), поэтому она сильнее шаблона,
+ * но слабее инвентаря: несуществующая штука в плане никому не нужна.
+ */
+function applySwap(code: string, input: ResolveInput): Exercise | null {
+  const replacement = input.swaps.get(code);
+  if (replacement !== undefined) {
+    const swapped = input.exercises.get(replacement);
+    if (swapped !== undefined && isAvailable(swapped, input.user)) {
+      return swapped;
+    }
+  }
+  return pickAvailable(code, input);
 }
 
 /** Упражнение из шаблона либо, если инвентаря нет, замена из той же swap_group (docs/06). */

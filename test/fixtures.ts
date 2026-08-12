@@ -157,6 +157,8 @@ export function baseProgression(
       tempo: first.tempo,
       weight: null,
       currentReps: first.targetMin,
+      hardStreak: 0,
+      easyStreak: 0,
       ...overrides[chain],
     });
   }

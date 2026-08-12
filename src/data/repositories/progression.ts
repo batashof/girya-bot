@@ -9,6 +9,8 @@ interface ProgressionRow {
   tempo: string;
   weight: number | null;
   current_reps: number;
+  hard_streak: number;
+  easy_streak: number;
 }
 
 export async function loadProgression(
@@ -17,7 +19,7 @@ export async function loadProgression(
 ): Promise<Map<Chain, ProgressionState>> {
   const rows = await all<ProgressionRow>(
     db,
-    `SELECT chain, exercise_code, chain_level, tempo, weight, current_reps
+    `SELECT chain, exercise_code, chain_level, tempo, weight, current_reps, hard_streak, easy_streak
        FROM progression WHERE user_id = ?`,
     telegramId,
   );
@@ -32,6 +34,8 @@ export async function loadProgression(
       tempo: row.tempo as ProgressionState['tempo'],
       weight: row.weight,
       currentReps: row.current_reps,
+      hardStreak: row.hard_streak,
+      easyStreak: row.easy_streak,
     });
   }
   return map;
@@ -45,14 +49,17 @@ export async function saveProgression(
   const statements = states.map((state) =>
     db
       .prepare(
-        `INSERT INTO progression (user_id, chain, exercise_code, chain_level, tempo, weight, current_reps)
-              VALUES (?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO progression (user_id, chain, exercise_code, chain_level, tempo, weight,
+                                  current_reps, hard_streak, easy_streak)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (user_id, chain) DO UPDATE SET
               exercise_code = excluded.exercise_code,
               chain_level   = excluded.chain_level,
               tempo         = excluded.tempo,
               weight        = excluded.weight,
               current_reps  = excluded.current_reps,
+              hard_streak   = excluded.hard_streak,
+              easy_streak   = excluded.easy_streak,
               updated_at    = datetime('now')`,
       )
       .bind(
@@ -63,6 +70,8 @@ export async function saveProgression(
         state.tempo,
         state.weight,
         state.currentReps,
+        state.hardStreak,
+        state.easyStreak,
       ),
   );
   if (statements.length > 0) {

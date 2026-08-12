@@ -1,3 +1,4 @@
+import type { ChainOutcome } from './session';
 import type { Chain, ChainStep, ProgressionState, UserProfile } from './types';
 
 /**
@@ -40,6 +41,8 @@ export function startingLevels(user: UserProfile, chainSteps: ChainStep[]): Prog
       tempo: step.tempo,
       weight: null,
       currentReps: step.targetMin,
+      hardStreak: 0,
+      easyStreak: 0,
     });
   }
   return states;
@@ -55,6 +58,106 @@ function pickStep(steps: ChainStep[], wanted: number, user: UserProfile): ChainS
     throw new Error('В лестнице нет ни одной ступени');
   }
   return chosen;
+}
+
+/** Сколько тренировок подряд нужно, чтобы сдвинуть лестницу в любую сторону (docs/05). */
+const STREAK_TO_MOVE = 2;
+
+/**
+ * Шаг по лестнице после тренировки.
+ *
+ * Вверх: все подходы выполнены по цели, фидбэк не «тяжело», и так две тренировки подряд.
+ * Сначала растут повторы внутри диапазона ступени, и только на верхней границе —
+ * следующая ступень (ADR-011: повторы → темп → вариант → вес, темп и вариант зашиты
+ * в порядок ступеней).
+ *
+ * Вниз: «тяжело» две тренировки подряд — зеркально, сначала повторы, потом ступень.
+ * Это регулировка, а не наказание, поэтому один шаг за раз в обе стороны.
+ */
+export function advance(
+  state: ProgressionState,
+  outcome: ChainOutcome,
+  chainSteps: ChainStep[],
+  user: UserProfile,
+): ProgressionState {
+  const steps = ladder(chainSteps, state.chain);
+  const current = steps.find((step) => step.level === state.chainLevel);
+  if (current === undefined) {
+    return state;
+  }
+
+  if (outcome.feedback === 'hard') {
+    const hardStreak = state.hardStreak + 1;
+    if (hardStreak < STREAK_TO_MOVE) {
+      return { ...state, hardStreak, easyStreak: 0 };
+    }
+    return { ...stepDown(state, current, steps, user), hardStreak: 0, easyStreak: 0 };
+  }
+
+  // Боль и пропуск не двигают лестницу ни вверх, ни вниз: разбираться с ними — дело
+  // адаптации дня, а не прогрессии.
+  if (!outcome.completed || outcome.feedback === 'pain' || outcome.feedback === 'skipped') {
+    return { ...state, easyStreak: 0, hardStreak: 0 };
+  }
+
+  const easyStreak = state.easyStreak + 1;
+  if (easyStreak < STREAK_TO_MOVE) {
+    return { ...state, easyStreak, hardStreak: 0 };
+  }
+  return { ...stepUp(state, current, steps, user), easyStreak: 0, hardStreak: 0 };
+}
+
+function stepUp(
+  state: ProgressionState,
+  current: ChainStep,
+  steps: ChainStep[],
+  user: UserProfile,
+): ProgressionState {
+  if (state.currentReps < current.targetMax) {
+    return { ...state, currentReps: state.currentReps + 1 };
+  }
+  const next = steps.find((step) => step.level > current.level && hasRequirement(step, user));
+  if (next === undefined) {
+    // Вершина лестницы: дальше растёт только качество, цель остаётся на верхней границе.
+    return state;
+  }
+  return {
+    ...state,
+    chainLevel: next.level,
+    exerciseCode: next.exerciseCode,
+    tempo: next.tempo,
+    currentReps: next.targetMin,
+  };
+}
+
+function stepDown(
+  state: ProgressionState,
+  current: ChainStep,
+  steps: ChainStep[],
+  user: UserProfile,
+): ProgressionState {
+  if (state.currentReps > current.targetMin) {
+    return { ...state, currentReps: state.currentReps - 1 };
+  }
+  const previous = [...steps]
+    .reverse()
+    .find((step) => step.level < current.level && hasRequirement(step, user));
+  if (previous === undefined) {
+    return state;
+  }
+  return {
+    ...state,
+    chainLevel: previous.level,
+    exerciseCode: previous.exerciseCode,
+    tempo: previous.tempo,
+    currentReps: previous.targetMax,
+  };
+}
+
+function ladder(chainSteps: ChainStep[], chain: Chain): ChainStep[] {
+  return chainSteps
+    .filter((step) => step.chain === chain)
+    .sort((left, right) => left.level - right.level);
 }
 
 function hasRequirement(step: ChainStep, user: UserProfile): boolean {

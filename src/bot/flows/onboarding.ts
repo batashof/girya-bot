@@ -1,7 +1,6 @@
 import { InlineKeyboard, type Bot, type Context } from 'grammy';
-import { loadChainSteps, loadExercises } from '../../data/repositories/exercises';
-import { initProgression, loadProgression } from '../../data/repositories/progression';
-import { loadTemplateForWeekday } from '../../data/repositories/templates';
+import { loadChainSteps } from '../../data/repositories/exercises';
+import { initProgression } from '../../data/repositories/progression';
 import {
   ensureUser,
   getUser,
@@ -11,11 +10,11 @@ import {
 } from '../../data/repositories/users';
 import { clearUiState, getUiState, setUiState } from '../../data/repositories/ui-state';
 import { STARTER_KETTLEBELLS } from '../../data/starter';
-import { resolveWorkout } from '../../domain/program';
-import { addDays, isValidTimezone, localMoment } from '../../domain/time';
+import { addDays, isValidTimezone, localMoment, nextWeekday } from '../../domain/time';
 import type { Kettlebell } from '../../domain/types';
 import { buttons, texts } from '../ui/texts';
 import { renderWorkout } from '../ui/workout';
+import { loadDay } from '../day';
 import { userIdOf, type BotDeps } from '../deps';
 
 /**
@@ -260,22 +259,17 @@ async function finish(ctx: Context, deps: BotDeps): Promise<void> {
 
   await ctx.reply(texts.onboarding.done(summary));
 
-  const tomorrow = addDays(localMoment(new Date(), user.timezone).date, 1);
-  const weekday = (localMoment(new Date(), user.timezone).weekday % 7) + 1;
-  const template = await loadTemplateForWeekday(deps.db, weekday);
-  if (template === null) {
+  const today = localMoment(new Date(), user.timezone);
+  const weekday = nextWeekday(today.weekday);
+  const tomorrow = await loadDay(deps.db, user, {
+    date: addDays(today.date, 1),
+    time: today.time,
+    weekday,
+  });
+  if (tomorrow === null) {
     return;
   }
-
-  const workout = resolveWorkout({
-    date: tomorrow,
-    template,
-    user,
-    exercises: await loadExercises(deps.db),
-    chainSteps,
-    progression: await loadProgression(deps.db, userId),
-  });
-  await ctx.reply(`${texts.onboarding.tomorrow}\n\n${renderWorkout(workout, weekday)}`);
+  await ctx.reply(`${texts.onboarding.tomorrow}\n\n${renderWorkout(tomorrow.workout, weekday)}`);
 }
 
 async function save(deps: BotDeps, userId: number, state: State): Promise<void> {

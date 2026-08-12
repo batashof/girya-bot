@@ -79,6 +79,11 @@ export function localWeekday(instant: Date, timezone: string): Weekday {
   return localMoment(instant, timezone).weekday;
 }
 
+/** Следующий день недели по кругу: за воскресеньем идёт понедельник. */
+export function nextWeekday(weekday: Weekday): Weekday {
+  return ((weekday % 7) + 1) as Weekday;
+}
+
 /** Минуты от полуночи — чтобы сравнивать «пора ли напоминать» без разбора строк по месту. */
 export function minutesOfDay(time: LocalTime): number {
   if (!TIME_PATTERN.test(time)) {

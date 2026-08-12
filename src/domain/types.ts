@@ -84,6 +84,10 @@ export interface ProgressionState {
   tempo: Tempo;
   weight: number | null;
   currentReps: number;
+  /** Тренировок подряд с фидбэком «тяжело» — на двух подряд лестница идёт вниз. */
+  hardStreak: number;
+  /** Тренировок подряд, выполненных по цели — на двух подряд лестница идёт вверх. */
+  easyStreak: number;
 }
 
 export interface Kettlebell {
@@ -124,6 +128,8 @@ export interface PlannedItem {
   position: number;
   block: Block;
   exercise: Exercise;
+  /** Лестница, из которой взят пункт. Только по таким считается прогрессия. */
+  chain: Chain | null;
   /** Уточнение из лестницы: «с колен», «ноги прямые». */
   variant: string | null;
   sets: number;
@@ -133,6 +139,19 @@ export interface PlannedItem {
   weight: number | null;
   restSec: number;
   unilateral: boolean;
+}
+
+/** Как прошёл подход. Порядок важен: чем дальше, тем «хуже» для прогрессии. */
+export type Feedback = 'easy' | 'ok' | 'hard' | 'pain' | 'skipped';
+
+/** Записанный факт по подходу — то, что уходит в `session_sets`. */
+export interface SetRecord {
+  position: number;
+  exerciseCode: string;
+  setIndex: number;
+  targetValue: number;
+  actualValue: number | null;
+  feedback: Feedback;
 }
 
 export interface Workout {

@@ -13,11 +13,13 @@ export const texts = {
     'Girya — тренировки дома, 15 минут утром.',
     '',
     '/today — тренировка на сегодня',
+    '/go — пройти её пошагово',
+    '/swap — заменить упражнение',
     '/start — настроить заново',
     '/ping — проверить, что бот жив',
     '/help — эта справка',
     '',
-    'Дальше по плану: /go, /mini, /pain, /stats.',
+    'Дальше по плану: /mini, /pain, /stats.',
   ].join('\n'),
 
   needOnboarding: 'Сначала /start — минута вопросов, и бот будет знать, что тебе давать.',
@@ -82,6 +84,31 @@ export const texts = {
 
     tomorrow: 'Завтра:',
   },
+
+  workout: {
+    alreadyDone: 'Сегодня уже сделано. Завтра будет следующий день.',
+
+    noSession: 'Тренировка не идёт. Начать — /go.',
+
+    pain: [
+      'Убрал это упражнение на сегодня.',
+      'Если боль резкая, отдаёт в руку или есть онемение — это к врачу, а не к следующему подходу.',
+    ].join('\n'),
+
+    nothingToSwap: 'Нечего менять: сначала /today или /go.',
+
+    noAlternatives(name: string): string {
+      return `Замены для «${name}» нет — по инвентарю не из чего выбрать.`;
+    },
+
+    chooseSwap(name: string): string {
+      return `Чем заменить «${name}»? Замена запомнится на неделю.`;
+    },
+
+    swapped(from: string, to: string): string {
+      return `Заменил: ${from} → ${to}. На неделю.`;
+    },
+  },
 };
 
 export const buttons = {
@@ -96,4 +123,11 @@ export const buttons = {
   levelStrong: 'Тренируюсь регулярно',
   yes: 'Да',
   no: 'Нет',
+
+  start: '▶️ Начать',
+  setDone: '✅ Готово',
+  setHard: '😮‍💨 Тяжело',
+  setEasy: '😴 Легко',
+  setPain: '🤕 Больно',
+  setSkip: '⏭ Пропустить',
 };
