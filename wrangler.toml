@@ -15,7 +15,7 @@ crons = ["*/5 * * * *"]
 # Мой Telegram id (@userinfobot). Не секрет, но и не константа в коде.
 OWNER_TELEGRAM_ID = "REPLACE_WITH_TELEGRAM_ID"
 # Путь вебхука со случайным сегментом — второй барьер помимо secret_token.
-WEBHOOK_PATH = "/tg/REPLACE_WITH_RANDOM_SEGMENT"
+WEBHOOK_PATH = "/tg/02da182f09f1578a27a7dbff"
 
 [observability]
 enabled = true
