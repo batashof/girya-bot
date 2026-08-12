@@ -1,12 +1,7 @@
-# 03. Модель данных
+-- Схема из docs/03-data-model.md.
+-- Все временные метки — ISO-8601 UTC; все «даты тренировки» — YYYY-MM-DD в локальном
+-- часовом поясе пользователя.
 
-СУБД — Cloudflare D1 (SQLite). Пользователь один, поэтому нигде нет шардирования и почти нет индексов «на будущее».
-Все временные метки — `TEXT` в ISO-8601 UTC. Все «даты тренировки» — `TEXT` вида `YYYY-MM-DD` в **локальном** часовом поясе пользователя (иначе тренировка в 07:00 по Варшаве попадала бы во вчерашний день по UTC).
-
-## Схема
-
-```sql
--- Пользователь (по факту один, но пусть будет таблица)
 CREATE TABLE users (
   telegram_id      INTEGER PRIMARY KEY,
   timezone         TEXT NOT NULL DEFAULT 'Europe/Warsaw',
@@ -14,9 +9,9 @@ CREATE TABLE users (
   evening_ping_at  TEXT             DEFAULT '20:00',
   session_minutes  INTEGER NOT NULL DEFAULT 15,    -- бюджет времени: 10 | 15 | 20 | 25
   mini_reminders   INTEGER NOT NULL DEFAULT 0,     -- напоминать про /mini днём
-  height_cm        INTEGER,                        -- 190
-  weight_kg        REAL,                           -- 73
-  birth_year       INTEGER,                        -- 1996
+  height_cm        INTEGER,
+  weight_kg        REAL,
+  birth_year       INTEGER,
   level            TEXT NOT NULL DEFAULT 'base',   -- base | strong (стартовый уровень лестниц)
   has_pullup_bar   INTEGER NOT NULL DEFAULT 0,
   has_band         INTEGER NOT NULL DEFAULT 0,
@@ -49,20 +44,23 @@ CREATE TABLE exercises (
   mistakes    TEXT,                      -- типичные ошибки
   video_url   TEXT,
   neck_safe   INTEGER NOT NULL DEFAULT 1,-- можно ли делать в день боли в шее
-  swap_group  TEXT NOT NULL              -- чем заменяемо: упражнения одной swap_group взаимозаменяемы
+  swap_group  TEXT NOT NULL              -- упражнения одной swap_group взаимозаменяемы
 );
 
--- Лестницы прогрессии из 06-exercise-library.md.
--- Ступень — не всегда другое упражнение: уровень 2 в тяге это тот же RW1, но с темпом
--- 3-1-3, а уровни 4–6 — одна и та же тяга под столом с разным положением ног.
--- Поэтому лестница живёт отдельной таблицей, а не выводится из exercises.chain_level.
+CREATE INDEX idx_exercises_chain ON exercises(chain, chain_level);
+CREATE INDEX idx_exercises_swap ON exercises(swap_group);
+
+-- Лестницы прогрессии из docs/06-exercise-library.md.
+-- Ступень — это не всегда другое упражнение: иногда тот же код с другим темпом
+-- или положением тела (ADR-011). Поэтому лестница живёт отдельной таблицей,
+-- а не выводится из exercises.chain_level.
 CREATE TABLE chain_steps (
   chain         TEXT NOT NULL,           -- push | row | squat | hinge | core
   level         INTEGER NOT NULL,        -- 1 = легче всего
   exercise_code TEXT NOT NULL REFERENCES exercises(code),
   variant       TEXT,                    -- «с колен», «ноги прямые» — уточнение к упражнению
-  tempo         TEXT NOT NULL DEFAULT 'normal',
-  load_hint     TEXT,
+  tempo         TEXT NOT NULL DEFAULT 'normal',  -- normal | slow | pause
+  load_hint     TEXT,                    -- bodyweight | kb_light | kb_main | kb_heavy | backpack
   requires      TEXT,                    -- bar | band | backpack — без чего ступень недоступна
   target_min    INTEGER NOT NULL,        -- стартовый диапазон повторов/секунд на ступени
   target_max    INTEGER NOT NULL,
@@ -79,11 +77,13 @@ CREATE TABLE templates (
   optional    INTEGER NOT NULL DEFAULT 0 -- суббота по желанию: пропуск не рвёт серию
 );
 
+CREATE UNIQUE INDEX idx_templates_weekday ON templates(weekday);
+
 CREATE TABLE template_items (
   template_code TEXT NOT NULL REFERENCES templates(code),
   position      INTEGER NOT NULL,
   exercise_code TEXT NOT NULL REFERENCES exercises(code),
-  block         TEXT NOT NULL,           -- neck | main | circuit | posture | support | mobility | walk
+  block         TEXT NOT NULL,           -- neck | main | posture | mobility | circuit | walk
   follow_chain  TEXT,                    -- если задано — упражнение берётся из лестницы пользователя
   sets          INTEGER NOT NULL,
   target_min    INTEGER NOT NULL,        -- нижняя граница диапазона повторов/секунд
@@ -98,7 +98,7 @@ CREATE TABLE template_items (
 -- Ключ — не упражнение, а цепочка: прогрессируем «тягу», а не конкретный её вариант.
 CREATE TABLE progression (
   user_id       INTEGER NOT NULL REFERENCES users(telegram_id),
-  chain         TEXT NOT NULL,           -- push | row | squat | hinge | core | scap …
+  chain         TEXT NOT NULL,           -- push | row | squat | hinge | core
   exercise_code TEXT NOT NULL REFERENCES exercises(code),  -- текущий вариант
   chain_level   INTEGER NOT NULL,        -- текущая ступень лестницы
   tempo         TEXT NOT NULL DEFAULT 'normal',  -- normal | slow | pause
@@ -147,7 +147,7 @@ CREATE TABLE session_sets (
 
 -- Замены упражнений, сделанные пользователем (учитываются при генерации)
 CREATE TABLE swaps (
-  user_id  INTEGER NOT NULL REFERENCES users(telegram_id),
+  user_id   INTEGER NOT NULL REFERENCES users(telegram_id),
   from_code TEXT NOT NULL REFERENCES exercises(code),
   to_code   TEXT NOT NULL REFERENCES exercises(code),
   until     TEXT,                        -- NULL = навсегда
@@ -184,35 +184,3 @@ CREATE TABLE events (
 CREATE INDEX idx_sessions_user_date ON sessions(user_id, local_date DESC);
 CREATE INDEX idx_sets_session ON session_sets(session_id);
 CREATE INDEX idx_sets_exercise ON session_sets(exercise_code);
-```
-
-## Ключевые решения
-
-**Почему `progression` отдельной таблицей, а не вычисляется из логов.**
-Вычислять текущую цель из истории — красиво, но каждый запрос превращается в агрегацию по всей истории плюс правила деload. Отдельная таблица делает состояние явным, отлаживаемым и правимым руками (`UPDATE progression SET chain_level = 3`). Логи остаются источником истины для аналитики, `progression` — производная, которую всегда можно пересобрать скриптом.
-
-**Почему ключ прогрессии — цепочка, а не упражнение.**
-Вес зафиксирован на 5 кг, поэтому нагрузка растёт сменой варианта: отжимания от стола → с пола → с паузой. Если хранить состояние по коду упражнения, при каждом переходе оно теряется. Цепочка (`push`, `row`, `squat`, `hinge`, `core`) — стабильная сущность, а конкретное упражнение и темп — её текущее состояние. Подробнее — [05-training-program.md](05-training-program.md).
-
-**Почему основная тренировка одна в день.**
-Частичный уникальный индекс по `kind = 'main'`: одна утренняя сессия формирует streak и прогрессию. Микро-сессии `/mini` пишутся в ту же таблицу с `kind = 'mini'`, но на прогрессию не влияют и в объём тренировок не входят — иначе три раза размяв шею за день, получишь ложное «выполнено».
-
-**`neck_safe`.**
-Флаг на упражнении, а не на группе: гиревой жим над головой в день острой боли в шее — плохая идея, а тяга в наклоне с опорой — нормальная. День с `neck_score >= 2` фильтрует набор по этому флагу.
-
-**`swap_group`.**
-Строка-ключ («horizontal_row», «hinge_heavy», «neck_isometric»). `/swap` предлагает упражнения из той же группы, доступные по инвентарю. Так замена не ломает смысл дня.
-
-**Почему лестница — отдельная таблица `chain_steps`, а не порядок в `exercises`.**
-Ступень лестницы не всегда равна упражнению. В тяге уровень 1 и уровень 2 — это один и тот же `RW1`, разница только в темпе; уровни 4–6 — один и тот же `RW7` с разным положением ног. Если хранить лестницу как `exercises.chain_level`, пришлось бы плодить упражнения-двойники ради темпа и угла. `chain_steps` описывает ступень как «упражнение + вариант + темп + вес», а `exercises.chain` остаётся пометкой принадлежности к лестнице.
-
-**`template_items.block` и `follow_chain`.**
-`block` — роль пункта в дне: шея, основное движение, осанка, поддерживающее, мобилити, круг, прогулка. Он же задаёт очередь на вылет, когда день не влезает в бюджет минут (ADR-012), и позволяет показать шейный протокол одной строкой вместо семи. `follow_chain` помечает пункт, который берётся не из шаблона, а из текущей ступени пользователя: в понедельник это «тяга», в четверг «отжимания». Без явной пометки пришлось бы подменять любое упражнение с непустым `chain`, и свинг в пятницу превращался бы в good morning.
-
-## Миграции
-
-Нумерованные SQL-файлы в `migrations/`, применяются `wrangler d1 migrations apply`. Откатов нет — при личном проекте проще написать миграцию-исправление. Перед рискованной миграцией — `wrangler d1 export` в файл (бэкап руками, `data/backups/` в `.gitignore`).
-
-## Бэкап
-
-Раз в неделю cron выгружает сессии в JSON и шлёт файлом мне же в Telegram. Это и бэкап, и бесплатное хранилище истории. Плюс `/export` по требованию.

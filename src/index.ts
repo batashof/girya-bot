@@ -1,4 +1,5 @@
 import { webhookCallback } from 'grammy';
+import type { UserFromGetMe } from 'grammy/types';
 import { createBot } from './bot/bot';
 import { readConfig, type Config, type Env } from './platform/env';
 import { handleScheduled } from './platform/scheduler';
@@ -29,7 +30,7 @@ export default {
       return new Response('unauthorized', { status: 401 });
     }
 
-    return webhookHandler(config)(request);
+    return handleUpdate(request, config, env);
   },
 
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -37,21 +38,25 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-type WebhookHandler = (request: Request) => Promise<Response>;
-
-let handler: WebhookHandler | undefined;
-
 /**
- * Бот живёт в области модуля: изолят переиспользуется между запросами, поэтому
- * `getMe` при инициализации grammY случается раз на изолят, а не на каждое сообщение.
- * Конфигурация в пределах деплоя не меняется, ключевать кэш нечем.
+ * Данные о боте кэшируются на изолят: без этого grammY дёргал бы `getMe` на каждое
+ * сообщение. Сам бот создаётся заново — он держит биндинги из `env` текущего запроса.
  */
-function webhookHandler(config: Config): WebhookHandler {
-  if (handler === undefined) {
-    const bot = createBot({ token: config.botToken, ownerId: config.ownerId });
-    handler = webhookCallback(bot, 'cloudflare-mod', { secretToken: config.webhookSecret });
+let cachedBotInfo: UserFromGetMe | undefined;
+
+async function handleUpdate(request: Request, config: Config, env: Env): Promise<Response> {
+  const bot = createBot({ token: config.botToken, ownerId: config.ownerId, db: env.DB });
+  if (cachedBotInfo !== undefined) {
+    bot.botInfo = cachedBotInfo;
   }
-  return handler;
+
+  const handle = webhookCallback(bot, 'cloudflare-mod', { secretToken: config.webhookSecret });
+  const response = await handle(request);
+
+  if (cachedBotInfo === undefined && bot.isInited()) {
+    cachedBotInfo = bot.botInfo;
+  }
+  return response;
 }
 
 /** Сравнение без ранних выходов: не даём подбирать секрет по времени ответа. */

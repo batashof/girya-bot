@@ -16,7 +16,8 @@
     "format": "prettier --write .",
     "deploy": "wrangler deploy",
     "db:local": "wrangler d1 migrations apply girya --local",
-    "db:remote": "wrangler d1 migrations apply girya --remote"
+    "db:remote": "wrangler d1 migrations apply girya --remote",
+    "seed:build": "node scripts/build-seed.mjs"
   },
   "dependencies": {
     "grammy": "^1.45.1"

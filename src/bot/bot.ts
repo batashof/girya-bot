@@ -1,12 +1,13 @@
 import { Bot, type Context } from 'grammy';
 import { registerHelp } from './commands/help';
 import { registerPing } from './commands/ping';
+import { registerToday } from './commands/today';
+import { registerOnboarding } from './flows/onboarding';
 import { texts } from './ui/texts';
+import type { BotDeps } from './deps';
 
-export interface BotOptions {
+export interface BotOptions extends BotDeps {
   token: string;
-  /** Единственный обслуживаемый пользователь (ADR-005). */
-  ownerId: number;
 }
 
 /**
@@ -15,6 +16,7 @@ export interface BotOptions {
  */
 export function createBot(options: BotOptions): Bot {
   const bot = new Bot(options.token);
+  const deps: BotDeps = { db: options.db, ownerId: options.ownerId };
 
   bot.use(async (ctx, next) => {
     if (ctx.from?.id !== options.ownerId) {
@@ -26,6 +28,10 @@ export function createBot(options: BotOptions): Bot {
 
   registerPing(bot);
   registerHelp(bot);
+  registerToday(bot, deps);
+  // Онбординг регистрируется последним: он ловит свободный текст и должен пропускать
+  // мимо себя всё, что уже разобрали команды.
+  registerOnboarding(bot, deps);
 
   bot.catch(async (failure) => {
     const where = describeUpdate(failure.ctx);

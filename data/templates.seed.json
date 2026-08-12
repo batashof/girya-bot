@@ -1,0 +1,538 @@
+{
+  "_comment": "Шаблоны дней W-A…W-G из docs/05-training-program.md. Шейный протокол (NP) вынесен в protocols и разворачивается сборщиком в отдельные строки template_items — он стоит первым пунктом в каждом дне (ADR-008).",
+
+  "protocols": {
+    "neck_standard": [
+      {
+        "exercise": "NK1",
+        "block": "neck",
+        "sets": 1,
+        "target_min": 10,
+        "target_max": 10,
+        "rest_sec": 15
+      },
+      {
+        "exercise": "NK2",
+        "block": "neck",
+        "sets": 1,
+        "target_min": 10,
+        "target_max": 10,
+        "rest_sec": 5
+      },
+      {
+        "exercise": "NK3",
+        "block": "neck",
+        "sets": 1,
+        "target_min": 10,
+        "target_max": 10,
+        "rest_sec": 5
+      },
+      {
+        "exercise": "NK4",
+        "block": "neck",
+        "sets": 1,
+        "target_min": 10,
+        "target_max": 10,
+        "rest_sec": 5
+      },
+      {
+        "exercise": "NK5",
+        "block": "neck",
+        "sets": 1,
+        "target_min": 10,
+        "target_max": 10,
+        "rest_sec": 5
+      },
+      {
+        "exercise": "NK6",
+        "block": "neck",
+        "sets": 1,
+        "target_min": 30,
+        "target_max": 30,
+        "rest_sec": 0
+      },
+      {
+        "exercise": "NK7",
+        "block": "neck",
+        "sets": 1,
+        "target_min": 30,
+        "target_max": 30,
+        "rest_sec": 0
+      }
+    ],
+    "neck_full": [
+      {
+        "exercise": "NK1",
+        "block": "neck",
+        "sets": 1,
+        "target_min": 10,
+        "target_max": 10,
+        "rest_sec": 15
+      },
+      {
+        "exercise": "NK2",
+        "block": "neck",
+        "sets": 2,
+        "target_min": 10,
+        "target_max": 10,
+        "rest_sec": 5
+      },
+      {
+        "exercise": "NK3",
+        "block": "neck",
+        "sets": 2,
+        "target_min": 10,
+        "target_max": 10,
+        "rest_sec": 5
+      },
+      {
+        "exercise": "NK4",
+        "block": "neck",
+        "sets": 2,
+        "target_min": 10,
+        "target_max": 10,
+        "rest_sec": 5
+      },
+      {
+        "exercise": "NK5",
+        "block": "neck",
+        "sets": 2,
+        "target_min": 10,
+        "target_max": 10,
+        "rest_sec": 5
+      },
+      {
+        "exercise": "NK6",
+        "block": "neck",
+        "sets": 1,
+        "target_min": 30,
+        "target_max": 30,
+        "rest_sec": 0
+      },
+      {
+        "exercise": "NK7",
+        "block": "neck",
+        "sets": 1,
+        "target_min": 30,
+        "target_max": 30,
+        "rest_sec": 0
+      }
+    ]
+  },
+
+  "templates": [
+    {
+      "code": "W-A",
+      "title": "Спина и осанка",
+      "weekday": 1,
+      "intensity": "medium",
+      "est_minutes": 15,
+      "optional": 0,
+      "items": [
+        { "protocol": "neck_standard" },
+        {
+          "exercise": "RW1",
+          "block": "main",
+          "follow_chain": "row",
+          "sets": 3,
+          "target_min": 12,
+          "target_max": 15,
+          "rest_sec": 60,
+          "load_hint": "kb_main"
+        },
+        {
+          "exercise": "SC1",
+          "block": "posture",
+          "sets": 2,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 20,
+          "load_hint": "bodyweight"
+        },
+        {
+          "exercise": "SC2",
+          "block": "posture",
+          "sets": 2,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 20,
+          "load_hint": "bodyweight"
+        },
+        {
+          "exercise": "SC3",
+          "block": "posture",
+          "sets": 2,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 20,
+          "load_hint": "bodyweight"
+        },
+        {
+          "exercise": "CR3",
+          "block": "support",
+          "sets": 3,
+          "target_min": 40,
+          "target_max": 40,
+          "rest_sec": 45,
+          "load_hint": "kb_main"
+        },
+        {
+          "exercise": "MB4",
+          "block": "mobility",
+          "sets": 2,
+          "target_min": 30,
+          "target_max": 30,
+          "rest_sec": 0
+        }
+      ]
+    },
+    {
+      "code": "W-B",
+      "title": "Ноги и таз",
+      "weekday": 2,
+      "intensity": "medium",
+      "est_minutes": 15,
+      "optional": 0,
+      "items": [
+        { "protocol": "neck_standard" },
+        {
+          "exercise": "LG5",
+          "block": "main",
+          "follow_chain": "squat",
+          "sets": 3,
+          "target_min": 12,
+          "target_max": 20,
+          "rest_sec": 60,
+          "load_hint": "bodyweight"
+        },
+        {
+          "exercise": "LG2",
+          "block": "support",
+          "sets": 3,
+          "target_min": 8,
+          "target_max": 12,
+          "rest_sec": 60,
+          "load_hint": "bodyweight"
+        },
+        {
+          "exercise": "PC8",
+          "block": "posture",
+          "sets": 3,
+          "target_min": 10,
+          "target_max": 15,
+          "rest_sec": 45,
+          "load_hint": "bodyweight"
+        },
+        {
+          "exercise": "MB7",
+          "block": "mobility",
+          "sets": 2,
+          "target_min": 30,
+          "target_max": 30,
+          "rest_sec": 0
+        }
+      ]
+    },
+    {
+      "code": "W-C",
+      "title": "Шея и грудной отдел",
+      "weekday": 3,
+      "intensity": "light",
+      "est_minutes": 12,
+      "optional": 0,
+      "items": [
+        { "protocol": "neck_full" },
+        {
+          "exercise": "NK8",
+          "block": "main",
+          "sets": 3,
+          "target_min": 8,
+          "target_max": 8,
+          "rest_sec": 30
+        },
+        {
+          "exercise": "NK9",
+          "block": "main",
+          "sets": 3,
+          "target_min": 15,
+          "target_max": 15,
+          "rest_sec": 30
+        },
+        {
+          "exercise": "SC6",
+          "block": "posture",
+          "sets": 3,
+          "target_min": 5,
+          "target_max": 5,
+          "rest_sec": 30,
+          "load_hint": "kb_main"
+        },
+        {
+          "exercise": "SC4",
+          "block": "posture",
+          "sets": 3,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 30
+        },
+        {
+          "exercise": "MB1",
+          "block": "mobility",
+          "sets": 1,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 0
+        },
+        {
+          "exercise": "MB2",
+          "block": "mobility",
+          "sets": 2,
+          "target_min": 8,
+          "target_max": 8,
+          "rest_sec": 0
+        }
+      ]
+    },
+    {
+      "code": "W-D",
+      "title": "Верх тела: жим и ротаторы",
+      "weekday": 4,
+      "intensity": "medium",
+      "est_minutes": 15,
+      "optional": 0,
+      "items": [
+        { "protocol": "neck_standard" },
+        {
+          "exercise": "PR3",
+          "block": "main",
+          "follow_chain": "push",
+          "sets": 3,
+          "target_min": 8,
+          "target_max": 15,
+          "rest_sec": 60,
+          "load_hint": "bodyweight"
+        },
+        {
+          "exercise": "PR5",
+          "block": "posture",
+          "sets": 3,
+          "target_min": 12,
+          "target_max": 15,
+          "rest_sec": 45,
+          "load_hint": "kb_main"
+        },
+        {
+          "exercise": "SC9",
+          "block": "support",
+          "sets": 3,
+          "target_min": 12,
+          "target_max": 15,
+          "rest_sec": 45,
+          "load_hint": "kb_main"
+        },
+        {
+          "exercise": "MB6",
+          "block": "mobility",
+          "sets": 2,
+          "target_min": 8,
+          "target_max": 8,
+          "rest_sec": 0
+        }
+      ]
+    },
+    {
+      "code": "W-E",
+      "title": "Задняя цепь",
+      "weekday": 5,
+      "intensity": "heavy",
+      "est_minutes": 15,
+      "optional": 0,
+      "items": [
+        { "protocol": "neck_standard" },
+        {
+          "exercise": "PC2",
+          "block": "main",
+          "follow_chain": "hinge",
+          "sets": 3,
+          "target_min": 10,
+          "target_max": 12,
+          "rest_sec": 60,
+          "load_hint": "kb_main"
+        },
+        {
+          "exercise": "PC3",
+          "block": "support",
+          "sets": 4,
+          "target_min": 20,
+          "target_max": 25,
+          "rest_sec": 60,
+          "load_hint": "kb_main"
+        },
+        {
+          "exercise": "PC6",
+          "block": "posture",
+          "sets": 3,
+          "target_min": 10,
+          "target_max": 12,
+          "rest_sec": 45,
+          "load_hint": "bodyweight"
+        },
+        {
+          "exercise": "MB3",
+          "block": "mobility",
+          "sets": 1,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 0
+        }
+      ]
+    },
+    {
+      "code": "W-F",
+      "title": "Длинный день",
+      "weekday": 6,
+      "intensity": "heavy",
+      "est_minutes": 25,
+      "optional": 1,
+      "items": [
+        { "protocol": "neck_standard" },
+        {
+          "exercise": "CR5",
+          "block": "main",
+          "sets": 5,
+          "target_min": 1,
+          "target_max": 1,
+          "rest_sec": 60,
+          "load_hint": "kb_main"
+        },
+        {
+          "exercise": "PC3",
+          "block": "circuit",
+          "sets": 3,
+          "target_min": 20,
+          "target_max": 20,
+          "rest_sec": 0,
+          "load_hint": "kb_main"
+        },
+        {
+          "exercise": "PR3",
+          "block": "circuit",
+          "sets": 3,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 0,
+          "load_hint": "bodyweight"
+        },
+        {
+          "exercise": "LG5",
+          "block": "circuit",
+          "sets": 3,
+          "target_min": 15,
+          "target_max": 15,
+          "rest_sec": 0,
+          "load_hint": "bodyweight"
+        },
+        {
+          "exercise": "CR3",
+          "block": "circuit",
+          "sets": 3,
+          "target_min": 40,
+          "target_max": 40,
+          "rest_sec": 60,
+          "load_hint": "kb_main"
+        },
+        {
+          "exercise": "MB4",
+          "block": "mobility",
+          "sets": 1,
+          "target_min": 30,
+          "target_max": 30,
+          "rest_sec": 0
+        },
+        {
+          "exercise": "MB5",
+          "block": "mobility",
+          "sets": 1,
+          "target_min": 5,
+          "target_max": 5,
+          "rest_sec": 0
+        },
+        {
+          "exercise": "NK6",
+          "block": "mobility",
+          "sets": 1,
+          "target_min": 30,
+          "target_max": 30,
+          "rest_sec": 0
+        },
+        {
+          "exercise": "NK7",
+          "block": "mobility",
+          "sets": 1,
+          "target_min": 30,
+          "target_max": 30,
+          "rest_sec": 0
+        }
+      ]
+    },
+    {
+      "code": "W-G",
+      "title": "Восстановление",
+      "weekday": 7,
+      "intensity": "recovery",
+      "est_minutes": 10,
+      "optional": 0,
+      "items": [
+        { "protocol": "neck_full" },
+        {
+          "exercise": "MB1",
+          "block": "mobility",
+          "sets": 1,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 0
+        },
+        {
+          "exercise": "MB2",
+          "block": "mobility",
+          "sets": 2,
+          "target_min": 8,
+          "target_max": 8,
+          "rest_sec": 0
+        },
+        {
+          "exercise": "MB4",
+          "block": "mobility",
+          "sets": 2,
+          "target_min": 30,
+          "target_max": 30,
+          "rest_sec": 0
+        },
+        {
+          "exercise": "MB5",
+          "block": "mobility",
+          "sets": 2,
+          "target_min": 5,
+          "target_max": 5,
+          "rest_sec": 0
+        },
+        {
+          "exercise": "NK10",
+          "block": "mobility",
+          "sets": 1,
+          "target_min": 8,
+          "target_max": 8,
+          "rest_sec": 0
+        },
+        {
+          "exercise": "MB9",
+          "block": "walk",
+          "sets": 1,
+          "target_min": 1800,
+          "target_max": 1800,
+          "rest_sec": 0
+        }
+      ]
+    }
+  ]
+}
