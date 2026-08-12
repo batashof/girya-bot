@@ -6,14 +6,14 @@ compatibility_date = "2026-01-01"
 binding = "DB"
 database_name = "girya"
 # Подставить вывод `wrangler d1 create girya` — см. docs/08-deployment.md
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "dc728350-64f3-4498-9d96-73273634863e"
 
 [triggers]
 crons = ["*/5 * * * *"]
 
 [vars]
 # Мой Telegram id (@userinfobot). Не секрет, но и не константа в коде.
-OWNER_TELEGRAM_ID = "REPLACE_WITH_TELEGRAM_ID"
+OWNER_TELEGRAM_ID = "616964848"
 # Путь вебхука со случайным сегментом — второй барьер помимо secret_token.
 WEBHOOK_PATH = "/tg/02da182f09f1578a27a7dbff"
 
