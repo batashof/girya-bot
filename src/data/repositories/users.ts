@@ -17,7 +17,9 @@ interface UserRow {
   has_band: number;
   has_backpack: number;
   block_start: string;
+  paused_from: string | null;
   paused_until: string | null;
+  snooze_until: string | null;
 }
 
 export async function getUser(db: D1Database, telegramId: number): Promise<User | null> {
@@ -42,7 +44,9 @@ export async function getUser(db: D1Database, telegramId: number): Promise<User 
     hasBackpack: bool(row.has_backpack),
     kettlebells,
     blockStart: row.block_start,
+    pausedFrom: row.paused_from,
     pausedUntil: row.paused_until,
+    snoozeUntil: row.snooze_until,
   };
 }
 
@@ -81,7 +85,9 @@ export interface UserPatch {
   has_band?: number;
   has_backpack?: number;
   block_start?: string;
+  paused_from?: string | null;
   paused_until?: string | null;
+  snooze_until?: string | null;
 }
 
 export async function updateUser(
@@ -96,6 +102,19 @@ export async function updateUser(
   const assignments = entries.map(([column]) => `${column} = ?`).join(', ');
   const values = entries.map(([, value]) => value as string | number | null);
   await run(db, `UPDATE users SET ${assignments} WHERE telegram_id = ?`, ...values, telegramId);
+}
+
+/** Все пользователи — их один, но планировщику нужен список (ADR-005). */
+export async function allUsers(db: D1Database): Promise<User[]> {
+  const rows = await all<{ telegram_id: number }>(db, `SELECT telegram_id FROM users`);
+  const users: User[] = [];
+  for (const row of rows) {
+    const user = await getUser(db, row.telegram_id);
+    if (user !== null) {
+      users.push(user);
+    }
+  }
+  return users;
 }
 
 export async function getKettlebells(db: D1Database, telegramId: number): Promise<Kettlebell[]> {

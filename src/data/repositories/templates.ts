@@ -31,13 +31,30 @@ export async function loadTemplateForWeekday(
   const template = await one<TemplateRow>(
     db,
     `SELECT code, title, weekday, intensity, est_minutes, optional
-       FROM templates WHERE weekday = ?`,
+       FROM templates WHERE weekday = ? AND kind = 'day'`,
     weekday,
   );
-  if (template === null) {
-    return null;
-  }
+  return template === null ? null : withItems(db, template);
+}
 
+/** Шаблон по коду: день восстановления и микро-блоки берутся именно так. */
+export async function loadTemplate(db: D1Database, code: string): Promise<DayTemplate | null> {
+  const template = await one<TemplateRow>(
+    db,
+    `SELECT code, title, weekday, intensity, est_minutes, optional FROM templates WHERE code = ?`,
+    code,
+  );
+  return template === null ? null : withItems(db, template);
+}
+
+export async function loadMiniBlocks(db: D1Database): Promise<{ code: string; title: string }[]> {
+  return all<{ code: string; title: string }>(
+    db,
+    `SELECT code, title FROM templates WHERE kind = 'mini' ORDER BY code`,
+  );
+}
+
+async function withItems(db: D1Database, template: TemplateRow): Promise<DayTemplate> {
   const items = await all<TemplateItemRow>(
     db,
     `SELECT position, exercise_code, block, follow_chain, sets,

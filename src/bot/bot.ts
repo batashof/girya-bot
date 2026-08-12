@@ -4,6 +4,9 @@ import { registerPing } from './commands/ping';
 import { registerToday } from './commands/today';
 import { registerOnboarding } from './flows/onboarding';
 import { registerWorkout } from './flows/workout';
+import { registerNeck } from './flows/neck';
+import { registerMini } from './flows/mini';
+import { registerSettings } from './flows/settings';
 import { texts } from './ui/texts';
 import type { BotDeps } from './deps';
 
@@ -31,6 +34,9 @@ export function createBot(options: BotOptions): Bot {
   registerHelp(bot);
   registerToday(bot, deps);
   registerWorkout(bot, deps);
+  registerNeck(bot, deps);
+  registerMini(bot, deps);
+  registerSettings(bot, deps);
   // Онбординг регистрируется последним: он ловит свободный текст и должен пропускать
   // мимо себя всё, что уже разобрали команды.
   registerOnboarding(bot, deps);

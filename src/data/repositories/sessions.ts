@@ -1,4 +1,5 @@
 import { all, one, run } from '../db';
+import { isNeckScore, type NeckScore } from '../../domain/adaptation';
 import type { Feedback, SetRecord } from '../../domain/types';
 
 export interface Session {
@@ -7,6 +8,7 @@ export interface Session {
   templateCode: string;
   weekInBlock: number;
   status: 'planned' | 'in_progress' | 'done' | 'skipped';
+  neckScore: NeckScore | null;
   startedAt: string | null;
   finishedAt: string | null;
 }
@@ -17,6 +19,7 @@ interface SessionRow {
   template_code: string;
   week_in_block: number;
   status: string;
+  neck_score: number | null;
   started_at: string | null;
   finished_at: string | null;
 }
@@ -28,7 +31,7 @@ export async function getMainSession(
 ): Promise<Session | null> {
   const row = await one<SessionRow>(
     db,
-    `SELECT id, local_date, template_code, week_in_block, status, started_at, finished_at
+    `SELECT id, local_date, template_code, week_in_block, status, neck_score, started_at, finished_at
        FROM sessions
       WHERE user_id = ? AND local_date = ? AND kind = 'main'`,
     telegramId,
@@ -152,41 +155,137 @@ export async function finishSession(db: D1Database, sessionId: number): Promise<
   return row?.minutes ?? 0;
 }
 
-export async function skipSession(db: D1Database, sessionId: number): Promise<void> {
-  await run(db, `UPDATE sessions SET status = 'skipped' WHERE id = ?`, sessionId);
-}
-
 /**
- * Серия — сколько дней подряд, считая назад от сегодня, есть выполненная основная
- * тренировка. Микро-сессии не считаются (ADR-013). «Заморозка» пропуска — M4.
+ * Сессия-заготовка на день: нужна, чтобы записать оценку шеи или пропуск до того,
+ * как тренировка начата.
  */
-export async function countStreak(
+export async function ensurePlannedSession(
   db: D1Database,
   telegramId: number,
-  today: string,
-): Promise<number> {
+  session: { localDate: string; templateCode: string; weekInBlock: number },
+): Promise<Session> {
+  const existing = await getMainSession(db, telegramId, session.localDate);
+  if (existing !== null) {
+    return existing;
+  }
+  await run(
+    db,
+    `INSERT INTO sessions (user_id, local_date, template_code, kind, week_in_block, status)
+          VALUES (?, ?, ?, 'main', ?, 'planned')`,
+    telegramId,
+    session.localDate,
+    session.templateCode,
+    session.weekInBlock,
+  );
+  const created = await getMainSession(db, telegramId, session.localDate);
+  if (created === null) {
+    throw new Error('Сессия не создалась');
+  }
+  return created;
+}
+
+export async function setNeckScore(
+  db: D1Database,
+  sessionId: number,
+  score: NeckScore,
+): Promise<void> {
+  await run(db, `UPDATE sessions SET neck_score = ? WHERE id = ?`, score, sessionId);
+}
+
+/** Оценка шеи за дату — нужна, чтобы вчерашние 2–3 перенеслись на сегодня. */
+export async function neckScoreFor(
+  db: D1Database,
+  telegramId: number,
+  localDate: string,
+): Promise<NeckScore | null> {
+  const row = await one<{ neck_score: number | null }>(
+    db,
+    `SELECT neck_score FROM sessions
+      WHERE user_id = ? AND local_date = ? AND kind = 'main' AND neck_score IS NOT NULL`,
+    telegramId,
+    localDate,
+  );
+  const score = row?.neck_score;
+  return score !== null && score !== undefined && isNeckScore(score) ? score : null;
+}
+
+/** Последние оценки шеи, свежие сначала — для правила «три дня подряд ≥2» (docs/10). */
+export async function recentNeckScores(
+  db: D1Database,
+  telegramId: number,
+  before: string,
+  limit: number,
+): Promise<NeckScore[]> {
+  const rows = await all<{ neck_score: number }>(
+    db,
+    `SELECT neck_score FROM sessions
+      WHERE user_id = ? AND kind = 'main' AND neck_score IS NOT NULL AND local_date < ?
+      ORDER BY local_date DESC LIMIT ?`,
+    telegramId,
+    before,
+    limit,
+  );
+  return rows.map((row) => row.neck_score).filter(isNeckScore);
+}
+
+/** Даты выполненных основных тренировок — вход для подсчёта серии. */
+export async function doneDates(
+  db: D1Database,
+  telegramId: number,
+  until: string,
+): Promise<Set<string>> {
   const rows = await all<{ local_date: string }>(
     db,
     `SELECT local_date FROM sessions
       WHERE user_id = ? AND kind = 'main' AND status = 'done' AND local_date <= ?
-      ORDER BY local_date DESC
-      LIMIT 400`,
+      ORDER BY local_date DESC LIMIT 400`,
     telegramId,
-    today,
+    until,
   );
-
-  const done = new Set(rows.map((row) => row.local_date));
-  let streak = 0;
-  let cursor = today;
-  while (done.has(cursor)) {
-    streak += 1;
-    cursor = shiftDay(cursor, -1);
-  }
-  return streak;
+  return new Set(rows.map((row) => row.local_date));
 }
 
-function shiftDay(date: string, days: number): string {
-  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+/** Микро-сессия: пишется отдельной строкой и на прогрессию не влияет (ADR-013). */
+export async function recordMiniSession(
+  db: D1Database,
+  telegramId: number,
+  options: { localDate: string; templateCode: string; weekInBlock: number; records: SetRecord[] },
+): Promise<void> {
+  await run(
+    db,
+    `INSERT INTO sessions (user_id, local_date, template_code, kind, week_in_block, status, started_at, finished_at)
+          VALUES (?, ?, ?, 'mini', ?, 'done', datetime('now'), datetime('now'))`,
+    telegramId,
+    options.localDate,
+    options.templateCode,
+    options.weekInBlock,
+  );
+  const row = await one<{ id: number }>(
+    db,
+    `SELECT id FROM sessions WHERE user_id = ? AND kind = 'mini' ORDER BY id DESC LIMIT 1`,
+    telegramId,
+  );
+  if (row !== null) {
+    await recordSets(db, row.id, options.records, null);
+  }
+}
+
+export async function countMiniToday(
+  db: D1Database,
+  telegramId: number,
+  localDate: string,
+): Promise<number> {
+  const row = await one<{ n: number }>(
+    db,
+    `SELECT count(*) n FROM sessions WHERE user_id = ? AND local_date = ? AND kind = 'mini'`,
+    telegramId,
+    localDate,
+  );
+  return row?.n ?? 0;
+}
+
+export async function skipSession(db: D1Database, sessionId: number): Promise<void> {
+  await run(db, `UPDATE sessions SET status = 'skipped' WHERE id = ?`, sessionId);
 }
 
 function toSession(row: SessionRow): Session {
@@ -196,6 +295,7 @@ function toSession(row: SessionRow): Session {
     templateCode: row.template_code,
     weekInBlock: row.week_in_block,
     status: row.status as Session['status'],
+    neckScore: row.neck_score !== null && isNeckScore(row.neck_score) ? row.neck_score : null,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
   };

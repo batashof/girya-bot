@@ -90,13 +90,14 @@ for (const template of templates.templates) {
   weekdays.add(template.weekday);
 
   lines.push(
-    `INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional) VALUES (${[
+    `INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES (${[
       sql(template.code),
       sql(template.title),
       num(template.weekday),
       sql(template.intensity),
       num(template.est_minutes),
       num(template.optional ?? 0),
+      sql('day'),
     ].join(', ')});`,
   );
 
@@ -128,9 +129,43 @@ if (weekdays.size !== 7) {
   fail(`шаблоны покрывают ${weekdays.size} дней недели из 7`);
 }
 
+lines.push('', '-- Микро-блоки /mini (docs/05-training-program.md, ADR-013)');
+for (const block of templates.mini) {
+  lines.push(
+    `INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES (${[
+      sql(block.code),
+      sql(block.title),
+      num(0),
+      sql('light'),
+      num(block.est_minutes),
+      num(1),
+      sql('mini'),
+    ].join(', ')});`,
+  );
+  block.items.forEach((item, index) => {
+    checkExercise(item.exercise, `микро-блок ${block.code}, пункт ${index + 1}`);
+    lines.push(
+      `INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES (${[
+        sql(block.code),
+        num(index + 1),
+        sql(item.exercise),
+        sql(item.block),
+        'NULL',
+        num(item.sets),
+        num(item.target_min),
+        num(item.target_max),
+        num(item.rest_sec ?? 30),
+        'NULL',
+        num(0),
+      ].join(', ')});`,
+    );
+  });
+}
+
 writeFileSync(OUTPUT, `${lines.join('\n')}\n`);
 console.log(
-  `${OUTPUT}: ${exercises.length} упражнений, ${templates.templates.length} шаблонов дня`,
+  `${OUTPUT}: ${exercises.length} упражнений, ${templates.templates.length} шаблонов дня, ` +
+    `${templates.mini.length} микро-блока`,
 );
 
 function expandItems(items, protocols, templateCode) {

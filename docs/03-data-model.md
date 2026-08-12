@@ -22,7 +22,9 @@ CREATE TABLE users (
   has_band         INTEGER NOT NULL DEFAULT 0,
   has_backpack     INTEGER NOT NULL DEFAULT 1,     -- рюкзак с книгами = регулируемый вес
   block_start      TEXT NOT NULL,                  -- дата начала 4-недельного блока
+  paused_from      TEXT,                           -- пауза — диапазон, а не дедлайн
   paused_until     TEXT,
+  snooze_until     TEXT,                           -- утреннее напоминание отложено кнопкой «Через час», UTC
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -76,8 +78,12 @@ CREATE TABLE templates (
   weekday     INTEGER NOT NULL,          -- 1=Пн … 7=Вс
   intensity   TEXT NOT NULL,             -- heavy | medium | light | recovery
   est_minutes INTEGER NOT NULL,
-  optional    INTEGER NOT NULL DEFAULT 0 -- суббота по желанию: пропуск не рвёт серию
+  optional    INTEGER NOT NULL DEFAULT 0,-- суббота по желанию: пропуск не рвёт серию
+  kind        TEXT NOT NULL DEFAULT 'day' -- day | mini
 );
+
+-- «Один шаблон на день недели» — только для дней: у микро-блоков weekday = 0.
+CREATE UNIQUE INDEX idx_templates_weekday ON templates(weekday) WHERE kind = 'day';
 
 CREATE TABLE template_items (
   template_code TEXT NOT NULL REFERENCES templates(code),
@@ -205,6 +211,12 @@ CREATE INDEX idx_sets_exercise ON session_sets(exercise_code);
 
 **Почему лестница — отдельная таблица `chain_steps`, а не порядок в `exercises`.**
 Ступень лестницы не всегда равна упражнению. В тяге уровень 1 и уровень 2 — это один и тот же `RW1`, разница только в темпе; уровни 4–6 — один и тот же `RW7` с разным положением ног. Если хранить лестницу как `exercises.chain_level`, пришлось бы плодить упражнения-двойники ради темпа и угла. `chain_steps` описывает ступень как «упражнение + вариант + темп + вес», а `exercises.chain` остаётся пометкой принадлежности к лестнице.
+
+**Почему микро-блоки живут в `templates`.**
+`/mini` — это те же три минуты по списку упражнений, что и день недели, только короче. Заводить ради трёх блоков отдельную пару таблиц значит дублировать и загрузку, и отрисовку. Микро-блоки помечены `kind = 'mini'` и `weekday = 0`, а уникальность «один шаблон на день недели» стала частичной. Сессии по ним пишутся с `kind = 'mini'` и на прогрессию и серию не влияют (ADR-013).
+
+**`snooze_until` и `paused_from`.**
+Кнопка «Через час» переносит утреннее напоминание: момент хранится в UTC, а отметка об отправке снимается из `reminders_log`, иначе дедупликация не дала бы прислать его второй раз. `paused_from` нужен потому, что серия должна знать, какие именно дни прощать: из одного `paused_until` диапазон не восстановить.
 
 **`template_items.block` и `follow_chain`.**
 `block` — роль пункта в дне: шея, основное движение, осанка, поддерживающее, мобилити, круг, прогулка. Он же задаёт очередь на вылет, когда день не влезает в бюджет минут (ADR-012), и позволяет показать шейный протокол одной строкой вместо семи. `follow_chain` помечает пункт, который берётся не из шаблона, а из текущей ступени пользователя: в понедельник это «тяга», в четверг «отжимания». Без явной пометки пришлось бы подменять любое упражнение с непустым `chain`, и свинг в пятницу превращался бы в good morning.

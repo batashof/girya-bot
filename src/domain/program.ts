@@ -1,3 +1,4 @@
+import { NO_ADAPTATION, type Adaptation } from './adaptation';
 import { daysBetween, type LocalDate } from './time';
 import type {
   Chain,
@@ -28,6 +29,8 @@ export interface ResolveInput {
   progression: Map<Chain, ProgressionState>;
   /** Ручные замены пользователя: код из плана → код, который он делает вместо (docs/06). */
   swaps: Map<string, string>;
+  /** Поправка на боль в шее. По умолчанию — никакой. */
+  adaptation?: Adaptation;
 }
 
 /** Очередь на вылет, когда день не влезает в бюджет: с конца списка (ADR-012). */
@@ -73,13 +76,14 @@ export function weekInBlock(blockStart: LocalDate, date: LocalDate): number {
 export function resolveWorkout(input: ResolveInput): Workout {
   const week = weekInBlock(input.user.blockStart, input.date);
   const deload = week === 4;
+  const adaptation = input.adaptation ?? NO_ADAPTATION;
   const budgetMinutes = dayBudgetMinutes(input.template, input.user.sessionMinutes, deload);
 
   const planned: PlannedItem[] = [];
   const dropped: string[] = [];
 
   for (const item of input.template.items) {
-    const resolved = resolveItem(item, input, deload);
+    const resolved = resolveItem(item, input, deload, adaptation);
     if (resolved === null) {
       const missing = input.exercises.get(item.exerciseCode);
       dropped.push(missing?.name ?? item.exerciseCode);
@@ -103,8 +107,14 @@ export function resolveWorkout(input: ResolveInput): Workout {
   };
 }
 
-function resolveItem(item: TemplateItem, input: ResolveInput, deload: boolean): PlannedItem | null {
-  const sets = deload ? Math.min(item.sets, DELOAD_MAX_SETS) : item.sets;
+function resolveItem(
+  item: TemplateItem,
+  input: ResolveInput,
+  deload: boolean,
+  adaptation: Adaptation,
+): PlannedItem | null {
+  const base = deload ? Math.min(item.sets, DELOAD_MAX_SETS) : item.sets;
+  const sets = Math.max(1, Math.round(base * adaptation.volumeFactor));
 
   if (item.followChain !== null) {
     const step = currentStep(item.followChain, input);
@@ -112,7 +122,7 @@ function resolveItem(item: TemplateItem, input: ResolveInput, deload: boolean): 
       return null;
     }
     const exercise = applySwap(step.exerciseCode, input);
-    if (exercise === null) {
+    if (exercise === null || !isAllowed(exercise, adaptation)) {
       return null;
     }
     const state = input.progression.get(item.followChain);
@@ -134,7 +144,7 @@ function resolveItem(item: TemplateItem, input: ResolveInput, deload: boolean): 
   }
 
   const exercise = applySwap(item.exerciseCode, input);
-  if (exercise === null) {
+  if (exercise === null || !isAllowed(exercise, adaptation)) {
     return null;
   }
   return {
@@ -207,6 +217,14 @@ function pickAvailable(code: string, input: ResolveInput): Exercise | null {
     }
   }
   return null;
+}
+
+/**
+ * Упражнения с `neck_safe = 0` в день боли ≥2 не предлагаются. Это инвариант, а не
+ * настройка: гиревой жим над головой в такой день — плохая идея (docs/03).
+ */
+function isAllowed(exercise: Exercise, adaptation: Adaptation): boolean {
+  return !adaptation.dropNeckUnsafe || exercise.neckSafe;
 }
 
 function isAvailable(exercise: Exercise | undefined, user: UserProfile): boolean {

@@ -120,7 +120,11 @@ export interface User extends UserProfile {
   miniReminders: boolean;
   weightKg: number | null;
   birthYear: number | null;
+  /** Пауза — диапазон дат, а не дедлайн: серия должна знать, какие дни прощать. */
+  pausedFrom: string | null;
   pausedUntil: string | null;
+  /** Момент в UTC, до которого утреннее напоминание отложено кнопкой «Через час». */
+  snoozeUntil: string | null;
 }
 
 /** Пункт готовой тренировки: уже с подставленным вариантом, весом и целью. */

@@ -1,6 +1,5 @@
 {
   "_comment": "Шаблоны дней W-A…W-G из docs/05-training-program.md. Шейный протокол (NP) вынесен в protocols и разворачивается сборщиком в отдельные строки template_items — он стоит первым пунктом в каждом дне (ADR-008).",
-
   "protocols": {
     "neck_standard": [
       {
@@ -119,7 +118,6 @@
       }
     ]
   },
-
   "templates": [
     {
       "code": "W-A",
@@ -129,7 +127,9 @@
       "est_minutes": 15,
       "optional": 0,
       "items": [
-        { "protocol": "neck_standard" },
+        {
+          "protocol": "neck_standard"
+        },
         {
           "exercise": "RW1",
           "block": "main",
@@ -194,7 +194,9 @@
       "est_minutes": 15,
       "optional": 0,
       "items": [
-        { "protocol": "neck_standard" },
+        {
+          "protocol": "neck_standard"
+        },
         {
           "exercise": "LG5",
           "block": "main",
@@ -241,7 +243,9 @@
       "est_minutes": 12,
       "optional": 0,
       "items": [
-        { "protocol": "neck_full" },
+        {
+          "protocol": "neck_full"
+        },
         {
           "exercise": "NK8",
           "block": "main",
@@ -301,7 +305,9 @@
       "est_minutes": 15,
       "optional": 0,
       "items": [
-        { "protocol": "neck_standard" },
+        {
+          "protocol": "neck_standard"
+        },
         {
           "exercise": "PR3",
           "block": "main",
@@ -348,7 +354,9 @@
       "est_minutes": 15,
       "optional": 0,
       "items": [
-        { "protocol": "neck_standard" },
+        {
+          "protocol": "neck_standard"
+        },
         {
           "exercise": "PC2",
           "block": "main",
@@ -395,7 +403,9 @@
       "est_minutes": 25,
       "optional": 1,
       "items": [
-        { "protocol": "neck_standard" },
+        {
+          "protocol": "neck_standard"
+        },
         {
           "exercise": "CR5",
           "block": "main",
@@ -483,7 +493,9 @@
       "est_minutes": 10,
       "optional": 0,
       "items": [
-        { "protocol": "neck_full" },
+        {
+          "protocol": "neck_full"
+        },
         {
           "exercise": "MB1",
           "block": "mobility",
@@ -530,6 +542,86 @@
           "sets": 1,
           "target_min": 1800,
           "target_max": 1800,
+          "rest_sec": 0
+        }
+      ]
+    }
+  ],
+  "_comment_mini": "Микро-блоки /mini из docs/05-training-program.md: три минуты, без переодевания. Пишутся в sessions с kind = 'mini' и на прогрессию не влияют (ADR-013).",
+  "mini": [
+    {
+      "code": "M-NECK",
+      "title": "Шея",
+      "est_minutes": 3,
+      "items": [
+        {
+          "exercise": "NK1",
+          "block": "neck",
+          "sets": 1,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 10
+        },
+        {
+          "exercise": "NK6",
+          "block": "neck",
+          "sets": 1,
+          "target_min": 30,
+          "target_max": 30,
+          "rest_sec": 0
+        },
+        {
+          "exercise": "NK7",
+          "block": "neck",
+          "sets": 1,
+          "target_min": 30,
+          "target_max": 30,
+          "rest_sec": 0
+        }
+      ]
+    },
+    {
+      "code": "M-POSTURE",
+      "title": "Осанка",
+      "est_minutes": 3,
+      "items": [
+        {
+          "exercise": "SC4",
+          "block": "posture",
+          "sets": 1,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 10
+        },
+        {
+          "exercise": "MB4",
+          "block": "mobility",
+          "sets": 1,
+          "target_min": 30,
+          "target_max": 30,
+          "rest_sec": 0
+        }
+      ]
+    },
+    {
+      "code": "M-HIPS",
+      "title": "Таз",
+      "est_minutes": 3,
+      "items": [
+        {
+          "exercise": "LG5",
+          "block": "support",
+          "sets": 1,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 10
+        },
+        {
+          "exercise": "MB7",
+          "block": "mobility",
+          "sets": 1,
+          "target_min": 30,
+          "target_max": 30,
           "rest_sec": 0
         }
       ]

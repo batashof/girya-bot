@@ -1,20 +1,23 @@
 import { InlineKeyboard, type Bot, type Context } from 'grammy';
 import { loadProgression, saveProgression } from '../../data/repositories/progression';
 import {
-  countStreak,
+  ensurePlannedSession,
   finishSession,
   loadSets,
   recordSets,
+  skipSession,
   startMainSession,
 } from '../../data/repositories/sessions';
 import { saveSwap } from '../../data/repositories/swaps';
-import { getUser } from '../../data/repositories/users';
+import { unmarkSent } from '../../data/repositories/reminders';
+import { getUser, updateUser } from '../../data/repositories/users';
 import { clearUiState, getUiState, setUiState } from '../../data/repositories/ui-state';
 import { advance } from '../../domain/progression';
 import { chainOutcomes, recordsForStep, toSteps, type WorkoutStep } from '../../domain/session';
 import { addDays, localMoment, nextWeekday } from '../../domain/time';
 import type { Exercise, Feedback, PlannedItem, User } from '../../domain/types';
 import { loadDay, type Day } from '../day';
+import { currentStreak } from '../streak';
 import { buttons, texts } from '../ui/texts';
 import { renderCard, renderFinish, weekdayName } from '../ui/workout';
 import { userIdOf, type BotDeps } from '../deps';
@@ -28,6 +31,12 @@ const SCREEN = 'workout';
 
 /** Сколько дней держится ручная замена (docs/06). */
 const SWAP_DAYS = 7;
+
+/** «Сокращённая версия» вечернего пинга: шея и одно основное движение (docs/04). */
+const SHORT_MINUTES = 7;
+
+/** На сколько откладывает кнопка «Через час». */
+const SNOOZE_MINUTES = 60;
 
 interface State {
   sessionId: number;
@@ -47,6 +56,10 @@ export function registerWorkout(bot: Bot, deps: BotDeps): void {
     await offerSwap(ctx, deps);
   });
 
+  bot.command('skip', async (ctx) => {
+    await skipToday(ctx, deps);
+  });
+
   bot.callbackQuery(/^w:/, async (ctx) => {
     const [, action = '', argument = ''] = ctx.callbackQuery.data.split(':');
     await ctx.answerCallbackQuery();
@@ -54,8 +67,8 @@ export function registerWorkout(bot: Bot, deps: BotDeps): void {
   });
 }
 
-async function start(ctx: Context, deps: BotDeps): Promise<void> {
-  const context = await currentContext(ctx, deps);
+async function start(ctx: Context, deps: BotDeps, budgetMinutes?: number): Promise<void> {
+  const context = await currentContext(ctx, deps, budgetMinutes);
   if (context === null) {
     return;
   }
@@ -99,10 +112,26 @@ async function handleAction(
   action: string,
   argument: string,
 ): Promise<void> {
-  // Кнопка «Начать» под /today приходит до того, как состояние вообще появилось.
-  if (action === 'start') {
-    await start(ctx, deps);
-    return;
+  // Кнопки под планом дня приходят до того, как состояние тренировки вообще появилось.
+  switch (action) {
+    case 'start':
+      await start(ctx, deps);
+      return;
+    case 'short':
+      // Вечерний пинг: лучше семь минут, чем ноль — серия сохраняется (docs/04).
+      await start(ctx, deps, SHORT_MINUTES);
+      return;
+    case 'snooze':
+      await snooze(ctx, deps);
+      return;
+    case 'skipday':
+      await skipToday(ctx, deps);
+      return;
+    case 'swapmenu':
+      await offerSwap(ctx, deps);
+      return;
+    default:
+      break;
   }
 
   const userId = userIdOf(ctx);
@@ -237,7 +266,7 @@ async function complete(
   }
   await saveProgression(deps.db, user.telegramId, updated);
 
-  const streak = await countStreak(deps.db, user.telegramId, day.moment.date);
+  const streak = await currentStreak(deps.db, user, day.moment.date);
   const tomorrow = await describeTomorrow(deps, user, day);
 
   await ctx.reply(renderFinish({ minutes, streak, tomorrow, levelUps }));
@@ -274,6 +303,41 @@ async function describeTomorrow(deps: BotDeps, user: User, day: Day): Promise<st
     return null;
   }
   return `${weekdayName(weekday)}, ${tomorrow.workout.title}, ~${tomorrow.workout.estimatedMinutes} мин`;
+}
+
+/**
+ * «Через час»: отметку об отправке снимаем, чтобы cron прислал напоминание второй раз,
+ * и запоминаем момент, до которого молчать.
+ */
+async function snooze(ctx: Context, deps: BotDeps): Promise<void> {
+  const user = await getUser(deps.db, userIdOf(ctx));
+  if (user === null) {
+    return;
+  }
+  const moment = localMoment(new Date(), user.timezone);
+  const until = new Date(Date.now() + SNOOZE_MINUTES * 60_000).toISOString();
+
+  await updateUser(deps.db, user.telegramId, { snooze_until: until });
+  await unmarkSent(deps.db, user.telegramId, moment.date, 'morning');
+  await ctx.reply(texts.workout.snoozed);
+}
+
+/** Пропуск дня целиком. Серия переживает один пропуск в неделю. */
+async function skipToday(ctx: Context, deps: BotDeps): Promise<void> {
+  const context = await currentContext(ctx, deps);
+  if (context === null) {
+    return;
+  }
+  const { user, day } = context;
+  const session = await ensurePlannedSession(deps.db, user.telegramId, {
+    localDate: day.moment.date,
+    templateCode: day.workout.templateCode,
+    weekInBlock: day.weekInBlock,
+  });
+
+  await skipSession(deps.db, session.id);
+  await clearUiState(deps.db, user.telegramId);
+  await ctx.reply(texts.workout.skipped);
 }
 
 /** `/swap` — альтернативы текущему упражнению из той же swap_group (docs/06). */
@@ -396,13 +460,19 @@ function resumePosition(
 async function currentContext(
   ctx: Context,
   deps: BotDeps,
+  budgetMinutes?: number,
 ): Promise<{ user: User; day: Day } | null> {
   const user = await getUser(deps.db, userIdOf(ctx));
   if (user === null) {
     await ctx.reply(texts.needOnboarding);
     return null;
   }
-  const day = await loadDay(deps.db, user, localMoment(new Date(), user.timezone));
+  const day = await loadDay(
+    deps.db,
+    user,
+    localMoment(new Date(), user.timezone),
+    budgetMinutes === undefined ? {} : { budgetMinutes },
+  );
   if (day === null) {
     await ctx.reply(texts.noTemplate);
     return null;

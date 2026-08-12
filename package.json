@@ -17,7 +17,9 @@
     "deploy": "wrangler deploy",
     "db:local": "wrangler d1 migrations apply girya --local",
     "db:remote": "wrangler d1 migrations apply girya --remote",
-    "seed:build": "node scripts/build-seed.mjs"
+    "seed:build": "node scripts/build-seed.mjs",
+    "seed:apply": "wrangler d1 execute girya --local --file migrations/0002_seed_content.sql",
+    "seed:apply:remote": "wrangler d1 execute girya --remote --file migrations/0002_seed_content.sql"
   },
   "dependencies": {
     "grammy": "^1.45.1"
