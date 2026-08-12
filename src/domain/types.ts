@@ -34,6 +34,7 @@ export interface Exercise {
   unilateral: boolean;
   cues: string;
   mistakes: string | null;
+  videoUrl: string | null;
   neckSafe: boolean;
   swapGroup: string;
 }

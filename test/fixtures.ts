@@ -55,6 +55,7 @@ export function loadExercises(): Map<string, Exercise> {
       unilateral: raw.unilateral === 1,
       cues: raw.cues,
       mistakes: raw.mistakes ?? null,
+      videoUrl: null,
       neckSafe: raw.neck_safe === 1,
       swapGroup: raw.swap_group,
     });

@@ -178,6 +178,16 @@ CREATE TABLE ui_state (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Демонстрации к упражнениям. Только идентификатор файла в Telegram: гифка
+-- загружается один раз и переотправляется по file_id бесплатно (ADR-014).
+-- Отдельная таблица, а не колонка в exercises: справочник пересобирается сидом целиком.
+CREATE TABLE exercise_media (
+  exercise_code TEXT PRIMARY KEY REFERENCES exercises(code),
+  file_id       TEXT NOT NULL,
+  kind          TEXT NOT NULL DEFAULT 'animation', -- animation | photo | video
+  added_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Минимальный аудит
 CREATE TABLE events (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,

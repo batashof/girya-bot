@@ -13,6 +13,7 @@ interface ExerciseRow {
   unilateral: number;
   cues: string;
   mistakes: string | null;
+  video_url: string | null;
   neck_safe: number;
   swap_group: string;
 }
@@ -34,7 +35,7 @@ export async function loadExercises(db: D1Database): Promise<Map<string, Exercis
   const rows = await all<ExerciseRow>(
     db,
     `SELECT code, name, group_code, pattern, equipment, chain, chain_level,
-            unit, unilateral, cues, mistakes, neck_safe, swap_group
+            unit, unilateral, cues, mistakes, video_url, neck_safe, swap_group
        FROM exercises`,
   );
 
@@ -52,6 +53,7 @@ export async function loadExercises(db: D1Database): Promise<Map<string, Exercis
       unilateral: bool(row.unilateral),
       cues: row.cues,
       mistakes: row.mistakes,
+      videoUrl: row.video_url,
       neckSafe: bool(row.neck_safe),
       swapGroup: row.swap_group,
     });

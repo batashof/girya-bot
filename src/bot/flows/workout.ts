@@ -95,8 +95,9 @@ async function start(ctx: Context, deps: BotDeps, budgetMinutes?: number): Promi
     return;
   }
 
-  const message = await ctx.reply(renderCard(steps[position.step]!, steps.length, position.set), {
-    reply_markup: cardKeyboard(),
+  const step = steps[position.step]!;
+  const message = await ctx.reply(renderCard(step, steps.length, position.set), {
+    reply_markup: cardKeyboard(step),
   });
 
   await setUiState<State>(deps.db, user.telegramId, SCREEN, {
@@ -222,13 +223,13 @@ async function showCard(
 
   try {
     await ctx.api.editMessageText(user.telegramId, state.messageId, text, {
-      reply_markup: cardKeyboard(),
+      reply_markup: cardKeyboard(step),
     });
     await setUiState<State>(deps.db, user.telegramId, SCREEN, state);
     return;
   } catch {
     // Сообщение могло быть удалено руками — тогда просто продолжаем новым.
-    const message = await ctx.reply(text, { reply_markup: cardKeyboard() });
+    const message = await ctx.reply(text, { reply_markup: cardKeyboard(step) });
     await setUiState<State>(deps.db, user.telegramId, SCREEN, {
       ...state,
       messageId: message.message_id,
@@ -490,12 +491,16 @@ async function currentContext(
   return { user, day };
 }
 
-function cardKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
+function cardKeyboard(step?: WorkoutStep): InlineKeyboard {
+  const keyboard = new InlineKeyboard()
     .text(buttons.setDone, 'w:done')
     .text(buttons.setHard, 'w:hard')
     .text(buttons.setEasy, 'w:easy')
     .row()
     .text(buttons.setPain, 'w:pain')
     .text(buttons.setSkip, 'w:skip');
+
+  // У шейного протокола техника уже расписана в самой карточке, кнопка там лишняя.
+  const code = step?.kind === 'exercise' ? step.items[0]?.exercise.code : undefined;
+  return code === undefined ? keyboard : keyboard.row().text(buttons.howto, `h:${code}`);
 }

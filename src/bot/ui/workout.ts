@@ -100,7 +100,10 @@ export function renderCard(step: WorkoutStep, total: number, setIndex: number): 
   if (step.kind === 'neck') {
     lines.push('Круг без пауз, усилие 30–50%, без резких движений:');
     for (const item of step.items) {
-      lines.push(`• ${renderItem(item)}`);
+      lines.push('', `• ${renderItem(item)}`);
+      // Техника нужна и здесь: протокол — семь упражнений подряд, и без подсказок
+      // он превращается в список названий.
+      lines.push(`  ${item.exercise.cues}`);
     }
     return lines.join('\n');
   }
