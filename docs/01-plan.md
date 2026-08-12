@@ -22,15 +22,21 @@
 
 Цель: бот отвечает `/ping` в проде, деплой автоматический.
 
-- [ ] `pnpm init`, TypeScript strict, ESLint + Prettier, Vitest
-- [ ] grammY + адаптер Cloudflare Workers, webhook с `secret_token`
-- [ ] Guard по `OWNER_TELEGRAM_ID` — остальным «этот бот личный»
-- [ ] `wrangler.toml`: биндинг D1, cron triggers, секреты
-- [ ] Команды `/ping`, `/help`
-- [ ] GitHub Actions: `deploy.yml` на push в `main`
-- [ ] Скрипт `pnpm dev` — локальный запуск в polling-режиме (без вебхука)
+- [x] `pnpm init`, TypeScript strict, ESLint + Prettier, Vitest
+- [x] grammY + адаптер Cloudflare Workers, webhook с `secret_token`
+- [x] Guard по `OWNER_TELEGRAM_ID` — остальным «этот бот личный»
+- [x] `wrangler.toml`: биндинг D1, cron triggers, секреты
+- [x] Команды `/ping`, `/help`
+- [x] GitHub Actions: `deploy.yml` на push в `main`
+- [x] Скрипт `pnpm dev` — локальный запуск в polling-режиме (без вебхука)
 
 **Готово, когда:** пишу `/ping` в Telegram — приходит `pong` из прода.
+
+Код написан и проверен локально (typecheck, тесты, сборка воркера, маршрутизация вебхука:
+404 на чужой путь, 401 на неверный `secret_token`). Осталось разовое, что делается руками
+по [08-deployment.md](08-deployment.md): бот у @BotFather, `wrangler d1 create girya`,
+подстановка `database_id` / `OWNER_TELEGRAM_ID` / `WEBHOOK_PATH` в `wrangler.toml`, секреты
+и `setWebhook`.
 
 ---
 

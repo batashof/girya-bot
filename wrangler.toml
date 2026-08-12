@@ -1,0 +1,21 @@
+name = "girya-bot"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "girya"
+# Подставить вывод `wrangler d1 create girya` — см. docs/08-deployment.md
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+# Мой Telegram id (@userinfobot). Не секрет, но и не константа в коде.
+OWNER_TELEGRAM_ID = "REPLACE_WITH_TELEGRAM_ID"
+# Путь вебхука со случайным сегментом — второй барьер помимо secret_token.
+WEBHOOK_PATH = "/tg/REPLACE_WITH_RANDOM_SEGMENT"
+
+[observability]
+enabled = true

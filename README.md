@@ -45,16 +45,20 @@
 
 ## Статус
 
-M0 (документация) — готово. Код ещё не написан, см. [план](docs/01-plan.md).
+M0 (документация) и M1 (скелет, вебхук, `/ping`) — готово. Дальше M2: миграции D1, библиотека
+упражнений, `/today`. См. [план](docs/01-plan.md).
 
-## Быстрый старт (после M1)
+## Быстрый старт
 
 ```bash
 pnpm install
-pnpm dev          # локальный воркер + polling-режим бота
-pnpm test
-pnpm deploy       # wrangler deploy
+cp .dev.vars.example .dev.vars   # токен dev-бота от @BotFather
+pnpm db:local                    # миграции в локальную D1 (появятся в M2)
+pnpm dev                         # локальный воркер + dev-бот в polling
 ```
+
+Проверки: `pnpm typecheck`, `pnpm lint`, `pnpm test`.
+Прод разворачивается по [08-deployment.md](docs/08-deployment.md); дальше деплоит CI на push в `main`.
 
 ## Лицензия
 

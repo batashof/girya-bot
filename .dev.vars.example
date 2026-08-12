@@ -1,0 +1,6 @@
+# Скопировать в .dev.vars (он в .gitignore) и подставить значения dev-бота.
+# Боевые токены сюда не кладём — для разработки отдельный бот от @BotFather.
+BOT_TOKEN=123456:dev-bot-token
+WEBHOOK_SECRET=dev-secret
+OWNER_TELEGRAM_ID=123456789
+WEBHOOK_PATH=/tg/dev
