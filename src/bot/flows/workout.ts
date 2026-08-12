@@ -9,6 +9,7 @@ import {
   startMainSession,
 } from '../../data/repositories/sessions';
 import { saveSwap } from '../../data/repositories/swaps';
+import { logEvent } from '../../data/repositories/stats';
 import { unmarkSent } from '../../data/repositories/reminders';
 import { getUser, updateUser } from '../../data/repositories/users';
 import { clearUiState, getUiState, setUiState } from '../../data/repositories/ui-state';
@@ -262,6 +263,15 @@ async function complete(
     const note = describeChange(state, next, day.exercises);
     if (note !== null) {
       levelUps.push(note);
+    }
+    if (next.chainLevel !== state.chainLevel) {
+      // История прогрессии живёт в журнале: `progression` держит только текущее состояние,
+      // а недельному отчёту нужно «что изменилось» (ADR-007).
+      await logEvent(deps.db, user.telegramId, 'level_change', {
+        chain: state.chain,
+        from: day.exercises.get(state.exerciseCode)?.name ?? state.exerciseCode,
+        to: day.exercises.get(next.exerciseCode)?.name ?? next.exerciseCode,
+      });
     }
   }
   await saveProgression(deps.db, user.telegramId, updated);

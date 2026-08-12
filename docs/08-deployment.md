@@ -62,9 +62,13 @@ OWNER_TELEGRAM_ID = "<мой telegram id>"
 Применить миграции:
 
 ```bash
-npx wrangler d1 migrations apply girya --local    # локальная база для разработки
-npx wrangler d1 migrations apply girya --remote   # прод
+pnpm db:local     # схема + контент справочников в локальную базу
+pnpm db:remote    # то же в прод
 ```
+
+`db:*` — это две операции: `wrangler d1 migrations apply` для схемы и применение
+`data/seed.generated.sql` для справочников. Контент не миграция: файл начинается с `DELETE`
+и применяется повторно, поэтому новое упражнение не требует новой миграции.
 
 ---
 

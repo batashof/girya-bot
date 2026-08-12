@@ -5,7 +5,8 @@ import { minutesOfDay, type LocalMoment, type LocalTime } from './time';
  * по каждому пользователю, а платформенный код только рассылает результат.
  */
 
-export type ReminderKind = 'morning' | 'evening' | 'mini_midday' | 'mini_afternoon';
+export type ReminderKind =
+  'morning' | 'evening' | 'mini_midday' | 'mini_afternoon' | 'weekly_report';
 
 export interface ReminderInput {
   moment: LocalMoment;
@@ -29,6 +30,8 @@ export interface ReminderInput {
  * может быть недоступен; но присылать «доброе утро» в обед — хуже, чем промолчать.
  */
 const WINDOW_MINUTES = 90;
+
+const SUNDAY = 7;
 
 const MINI_TIMES: Record<'mini_midday' | 'mini_afternoon', LocalTime> = {
   mini_midday: '12:00',
@@ -55,6 +58,16 @@ export function dueReminders(input: ReminderInput): ReminderKind[] {
     inWindow(nowMinutes, minutesOfDay(input.eveningPingAt))
   ) {
     due.push('evening');
+  }
+
+  // Недельный отчёт — воскресным вечером, вместе с добивочным пингом (docs/04).
+  if (
+    input.eveningPingAt !== null &&
+    input.moment.weekday === SUNDAY &&
+    !input.alreadySent.has('weekly_report') &&
+    inWindow(nowMinutes, minutesOfDay(input.eveningPingAt))
+  ) {
+    due.push('weekly_report');
   }
 
   // Микро-блоки — только в рабочие дни: на выходных человек и так не за столом.

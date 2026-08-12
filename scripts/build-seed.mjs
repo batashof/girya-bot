@@ -1,13 +1,15 @@
 /**
- * Собирает миграцию-сид справочников из data/*.seed.json.
+ * Собирает SQL-сид справочников из data/*.seed.json.
  *
- * Источник истины — JSON рядом с документацией; SQL генерируется, чтобы миграция
- * применялась обычным `wrangler d1 migrations apply` и её было видно в ревью.
+ * Это не миграция, а полная пересборка контента: файл начинается с DELETE и применяется
+ * повторно сколько угодно раз. В migrations/ лежит только схема — иначе сид пришлось бы
+ * нумеровать между ALTER-ами и он ломался бы на чистой базе.
+ *
  * Новое упражнение: строка в docs/06-exercise-library.md → запись в JSON → `pnpm seed:build`.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const OUTPUT = 'migrations/0002_seed_content.sql';
+const OUTPUT = 'data/seed.generated.sql';
 
 const exercises = readJson('data/exercises.seed.json');
 const chains = readJson('data/chains.seed.json');
@@ -16,6 +18,7 @@ const templates = readJson('data/templates.seed.json');
 const knownCodes = new Set(exercises.map((exercise) => exercise.code));
 const lines = [
   '-- Сгенерировано `pnpm seed:build` из data/*.seed.json. Руками не править.',
+  '-- Применяется отдельно от миграций: `pnpm seed:apply` (локально) или `pnpm seed:apply:remote`.',
   '',
   '-- Справочники пересобираются целиком: это статический контент, а не пользовательские данные.',
   'DELETE FROM template_items;',

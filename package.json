@@ -15,11 +15,11 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "deploy": "wrangler deploy",
-    "db:local": "wrangler d1 migrations apply girya --local",
-    "db:remote": "wrangler d1 migrations apply girya --remote",
+    "db:local": "wrangler d1 migrations apply girya --local && pnpm seed:apply",
+    "db:remote": "wrangler d1 migrations apply girya --remote && pnpm seed:apply:remote",
     "seed:build": "node scripts/build-seed.mjs",
-    "seed:apply": "wrangler d1 execute girya --local --file migrations/0002_seed_content.sql",
-    "seed:apply:remote": "wrangler d1 execute girya --remote --file migrations/0002_seed_content.sql"
+    "seed:apply": "wrangler d1 execute girya --local --file data/seed.generated.sql",
+    "seed:apply:remote": "wrangler d1 execute girya --remote --file data/seed.generated.sql"
   },
   "dependencies": {
     "grammy": "^1.45.1"

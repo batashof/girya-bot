@@ -25,6 +25,19 @@ const FREEZE_WINDOW = 7;
 /** Дальше этого назад не считаем: серия в годы всё равно упирается в здравый смысл. */
 const MAX_LOOKBACK = 400;
 
+/**
+ * Рекордная серия за всю историю. Считается тем же правилом, что и текущая,
+ * поэтому рекорд и текущая величина сравнимы между собой.
+ */
+export function longestStreak(input: StreakInput): number {
+  const dates = [...input.done].sort();
+  let record = 0;
+  for (const date of dates) {
+    record = Math.max(record, countStreak({ ...input, today: date }));
+  }
+  return record;
+}
+
 export function countStreak(input: StreakInput): number {
   let streak = 0;
   let cursor = input.today;

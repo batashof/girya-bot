@@ -1,14 +1,18 @@
 import { Api, InlineKeyboard } from 'grammy';
 import { markSent, sentToday } from '../data/repositories/reminders';
+import { levelChangesSince, loadSessionSummaries } from '../data/repositories/stats';
 import { getMainSession } from '../data/repositories/sessions';
 import { allUsers, updateUser } from '../data/repositories/users';
 import { dueReminders, type ReminderKind } from '../domain/reminders';
-import { localMoment } from '../domain/time';
+import { weekInBlock } from '../domain/program';
+import { summarizeWeeks } from '../domain/stats';
+import { addDays, localMoment } from '../domain/time';
 import type { User } from '../domain/types';
 import { loadDay } from '../bot/day';
 import { neckKeyboard } from '../bot/flows/neck';
 import { buttons, texts } from '../bot/ui/texts';
 import { renderWorkout } from '../bot/ui/workout';
+import { renderWeeklyReport } from '../bot/ui/stats';
 import { readConfig, type Env } from './env';
 
 /**
@@ -76,6 +80,10 @@ async function send(db: D1Database, api: Api, user: User, kind: ReminderKind): P
       });
       return;
     }
+    case 'weekly_report': {
+      await api.sendMessage(user.telegramId, await weeklyReport(db, user));
+      return;
+    }
     case 'mini_midday':
     case 'mini_afternoon': {
       await api.sendMessage(user.telegramId, texts.reminders.mini, {
@@ -84,4 +92,23 @@ async function send(db: D1Database, api: Api, user: User, kind: ReminderKind): P
       return;
     }
   }
+}
+
+/** Недельный отчёт воскресным вечером (docs/04-bot-ux.md). */
+async function weeklyReport(db: D1Database, user: User): Promise<string> {
+  const today = localMoment(new Date(), user.timezone).date;
+  const sessions = await loadSessionSummaries(db, user.telegramId, addDays(today, -21));
+  const weeks = summarizeWeeks(sessions, today, 2);
+  const week = weeks[0];
+  if (week === undefined) {
+    return texts.stats.empty;
+  }
+
+  return renderWeeklyReport({
+    week,
+    previous: weeks[1],
+    changes: await levelChangesSince(db, user.telegramId, `${week.from} 00:00:00`),
+    // Отчёт приходит в воскресенье вечером, поэтому «следующая неделя» — та, что с завтра.
+    nextWeekIsDeload: weekInBlock(user.blockStart, addDays(today, 1)) === 4,
+  });
 }

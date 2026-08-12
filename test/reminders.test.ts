@@ -81,6 +81,22 @@ describe('dueReminders', () => {
     expect(dueReminders(input({ ...base, mainStatus: 'skipped' }))).toEqual([]);
   });
 
+  it('шлёт недельный отчёт воскресным вечером', () => {
+    const sunday = input({
+      moment: { date: '2026-08-16', time: '20:00', weekday: 7 },
+      alreadySent: new Set(['morning', 'evening']),
+    });
+    expect(dueReminders(sunday)).toEqual(['weekly_report']);
+  });
+
+  it('не шлёт отчёт в другие дни недели', () => {
+    const wednesday = input({
+      moment: { date: '2026-08-12', time: '20:00', weekday: 3 },
+      alreadySent: new Set(['morning', 'evening']),
+    });
+    expect(dueReminders(wednesday)).toEqual([]);
+  });
+
   it('напоминает про микро-блоки только в рабочие дни и только если включено', () => {
     const midday = { date: '2026-08-12', time: '12:00', weekday: 3 as Weekday };
     const saturday = { date: '2026-08-15', time: '12:00', weekday: 6 as Weekday };

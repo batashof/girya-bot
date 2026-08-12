@@ -107,6 +107,28 @@ export function daysBetween(from: LocalDate, to: LocalDate): number {
   return Math.round((toUtcMidnight(to) - toUtcMidnight(from)) / 86_400_000);
 }
 
+/**
+ * Номер недели по ISO 8601: неделя начинается с понедельника, первая неделя года —
+ * та, в которую попадает первый четверг. Нужен для недельного отчёта («Неделя 32»).
+ */
+export function isoWeek(date: LocalDate): number {
+  const point = new Date(toUtcMidnight(date));
+  // Сдвигаемся на четверг своей недели — он всегда лежит в «правильном» году.
+  const day = (point.getUTCDay() + 6) % 7;
+  point.setUTCDate(point.getUTCDate() - day + 3);
+  const firstThursday = new Date(Date.UTC(point.getUTCFullYear(), 0, 4));
+  const firstDay = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDay + 3);
+  return 1 + Math.round((point.getTime() - firstThursday.getTime()) / (7 * 86_400_000));
+}
+
+/** Понедельник недели, в которую попадает дата. */
+export function startOfWeek(date: LocalDate): LocalDate {
+  const point = new Date(toUtcMidnight(date));
+  const day = (point.getUTCDay() + 6) % 7;
+  return addDays(date, -day);
+}
+
 export function isValidTimezone(timezone: string): boolean {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: timezone });
