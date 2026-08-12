@@ -13,7 +13,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
@@ -29,11 +29,26 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      # Пока в репозитории нет ключей Cloudflare, деплой пропускается с явной пометкой,
+      # а не роняет сборку на каждом пуше. Ключи ставятся один раз (docs/08-deployment.md).
+      - id: cloudflare
+        env:
+          API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$API_TOKEN" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::CLOUDFLARE_API_TOKEN не задан — деплой пропущен, см. docs/08-deployment.md"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       # Миграции сознательно не применяются автоматически — руками (docs/08-deployment.md).
-      - uses: cloudflare/wrangler-action@v3
+      - if: steps.cloudflare.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

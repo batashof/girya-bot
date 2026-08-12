@@ -11,7 +11,7 @@
 | Аккаунт Telegram | бесплатно |
 | Аккаунт Cloudflare (Workers Free) | бесплатно, карта не нужна |
 | Аккаунт GitHub | уже есть |
-| Node 20+, pnpm | локально |
+| Node 22+, pnpm 11 | локально |
 
 ---
 
@@ -127,7 +127,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
