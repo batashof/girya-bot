@@ -1,8 +1,9 @@
-import { InlineKeyboard, type Bot, type Context } from 'grammy';
+import { InlineKeyboard, InputFile, type Bot, type Context } from 'grammy';
 import { loadChainSteps, loadExercises } from '../../data/repositories/exercises';
 import { getMedia, saveMedia } from '../../data/repositories/media';
 import type { Exercise } from '../../domain/types';
 import { demoLink, renderHowto } from '../ui/howto';
+import { BUILTIN_DEMOS } from '../ui/demos.generated';
 import { buttons, texts } from '../ui/texts';
 import { type BotDeps } from '../deps';
 
@@ -52,20 +53,33 @@ async function showHowto(ctx: Context, deps: BotDeps, query: string): Promise<vo
     getMedia(deps.db, exercise.code),
   ]);
 
-  const text = renderHowto({ exercise, steps, hasMedia: media !== null });
+  // Своя присланная демонстрация важнее встроенной схемы: она конкретнее.
+  const builtin = BUILTIN_DEMOS[exercise.code];
+  const animation =
+    media !== null
+      ? media.fileId
+      : builtin === undefined
+        ? null
+        : new InputFile(new Uint8Array(builtin), `${exercise.code}.gif`);
+
+  const text = renderHowto({
+    exercise,
+    steps,
+    hasMedia: media !== null || builtin !== undefined,
+  });
   const keyboard = new InlineKeyboard().url(buttons.demo, demoLink(exercise));
 
-  if (media === null) {
+  if (animation === null) {
     await ctx.reply(text, { reply_markup: keyboard });
     return;
   }
 
   // Подпись у медиа ограничена 1024 символами — длинную технику шлём отдельным сообщением.
   if (text.length <= 1000) {
-    await ctx.replyWithAnimation(media.fileId, { caption: text, reply_markup: keyboard });
+    await ctx.replyWithAnimation(animation, { caption: text, reply_markup: keyboard });
     return;
   }
-  await ctx.replyWithAnimation(media.fileId);
+  await ctx.replyWithAnimation(animation);
   await ctx.reply(text, { reply_markup: keyboard });
 }
 

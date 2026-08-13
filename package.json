@@ -19,7 +19,8 @@
     "db:remote": "wrangler d1 migrations apply girya --remote && pnpm seed:apply:remote",
     "seed:build": "node scripts/build-seed.mjs",
     "seed:apply": "wrangler d1 execute girya --local --file data/seed.generated.sql",
-    "seed:apply:remote": "wrangler d1 execute girya --remote --file data/seed.generated.sql"
+    "seed:apply:remote": "wrangler d1 execute girya --remote --file data/seed.generated.sql",
+    "demos:build": "python3 scripts/build_demos.py"
   },
   "dependencies": {
     "grammy": "^1.45.1"

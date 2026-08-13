@@ -8,6 +8,11 @@ database_name = "girya"
 # Подставить вывод `wrangler d1 create girya` — см. docs/08-deployment.md
 database_id = "dc728350-64f3-4498-9d96-73273634863e"
 
+# Схемы движения вшиваются в воркер бинарными модулями (ADR-014).
+[[rules]]
+type = "Data"
+globs = ["**/*.gif"]
+
 [triggers]
 crons = ["*/5 * * * *"]
 
