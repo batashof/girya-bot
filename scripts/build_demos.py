@@ -30,6 +30,8 @@ FRAMES = 14
 FRAME_MS = 100
 # Схема обходится горстью цветов; палитра пожиже — файл втрое легче.
 PALETTE_COLORS = 8
+# Ниже этого числа различных кадров гифка перестаёт быть анимацией для Telegram.
+MIN_UNIQUE_FRAMES = 6
 
 BG = (250, 249, 246)
 INK = (32, 34, 38)
@@ -417,16 +419,23 @@ def neck_press_side(canvas: Canvas, t: float) -> None:
 
 
 def neck_press_rotation(canvas: Canvas, t: float) -> None:
-    """NK5. Ладонь на скуле, попытка повернуть голову против сопротивления."""
-    shake = pulse(t, 0.03)
-    center = head_center(0.0)
+    """NK5. Ладонь на скуле, попытка повернуть голову против сопротивления.
+
+    Голова остаётся на месте — двигать в кадре нечего, кроме самого усилия. Поэтому
+    заметно ходит стрелка, а голова только подрагивает: статичная гифка ещё и ломается
+    у Telegram, который отдаёт такую обратно документом вместо анимации.
+    """
+    shake = pulse(t, 1.0)
+    tilt = shake * 5.0
+    center = head_center(tilt)
     shoulders(canvas)
     palm_x = center[0] + HEAD_R_BIG + 0.11
     canvas.bone((0.58, SHOULDER_Y), (0.92, 0.44), width=0.032)
     canvas.bone((0.92, 0.44), (palm_x + 0.08, center[1] - 0.02), width=0.032)
     canvas.palm((palm_x, center[1] - 0.02), 0.0)
-    head_front(canvas, 0.0, turn=0.35 + shake)
-    canvas.arrow((center[0] + HEAD_R_BIG + 0.01, center[1] - 0.02), (palm_x - 0.05, center[1] - 0.02))
+    head_front(canvas, tilt, turn=0.35 + shake * 0.1)
+    tail = 0.16 + 0.10 * abs(shake)
+    canvas.arrow((palm_x - 0.05 - tail, center[1] - 0.02), (palm_x - 0.05, center[1] - 0.02))
 
 
 def stretch_frame(canvas: Canvas, center: Point, hand: Point) -> None:
@@ -1414,6 +1423,17 @@ def render(code: str, demo: Demo) -> str:
         canvas.label(demo.title)
         demo.draw(canvas, index / FRAMES)
         frames.append(canvas.finish().quantize(colors=PALETTE_COLORS, method=Image.MEDIANCUT))
+
+    # Почти неподвижная схема — это не только скучно: Telegram не умеет собрать из неё
+    # видео и возвращает файл документом вместо animation, а карточка ждёт анимацию.
+    # Петля идёт туда-обратно, поэтому половина кадров — зеркала: различных всегда
+    # примерно FRAMES/2 + 1, и порог стоит заметно ниже этого числа.
+    unique = len({frame.tobytes() for frame in frames})
+    if unique < MIN_UNIQUE_FRAMES:
+        raise SystemExit(
+            f"{code}: движения почти нет — {unique} различных кадров из {FRAMES}. "
+            f"Увеличь амплитуду в схеме."
+        )
 
     os.makedirs(OUT_DIR, exist_ok=True)
     path = os.path.join(OUT_DIR, f"{code}.gif")

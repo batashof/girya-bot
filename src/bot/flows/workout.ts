@@ -20,7 +20,7 @@ import { addDays, localMoment, nextWeekday } from '../../domain/time';
 import type { Exercise, Feedback, PlannedItem, User } from '../../domain/types';
 import { loadDay, type Day } from '../day';
 import { currentStreak } from '../streak';
-import { resolveDemo } from '../demo';
+import { resolveDemo, type Demo } from '../demo';
 import { buttons, texts } from '../ui/texts';
 import { renderCard, renderDone, renderFinish, weekdayName } from '../ui/workout';
 import { userIdOf, type BotDeps } from '../deps';
@@ -249,25 +249,54 @@ async function sendCard(
   const demo = code === undefined ? null : resolveDemo(code, await loadMedia(deps.db));
 
   // Схема не должна съедать технику: если подпись не влезает, картинку не шлём.
-  if (demo === null || text.length > CAPTION_LIMIT) {
-    const message = await ctx.reply(text, options);
-    return { messageId: message.message_id, media: false };
-  }
-
-  const caption = { caption: text, ...options };
-  if (demo.kind === 'animation') {
-    const message = await ctx.replyWithAnimation(demo.file, caption);
-    if (demo.fromBundle && code !== undefined) {
-      // Файл ушёл один раз — дальше Telegram отдаёт его по `file_id` бесплатно (ADR-014).
-      await cacheBuiltinMedia(deps.db, code, message.animation.file_id);
+  if (demo !== null && text.length <= CAPTION_LIMIT) {
+    const sent = await sendWithDemo(ctx, deps, demo, code ?? '', { caption: text, ...options });
+    if (sent !== null) {
+      return sent;
     }
-    return { messageId: message.message_id, media: true };
   }
 
-  const message =
-    demo.kind === 'photo'
-      ? await ctx.replyWithPhoto(demo.file, caption)
-      : await ctx.replyWithVideo(demo.file, caption);
+  const message = await ctx.reply(text, options);
+  return { messageId: message.message_id, media: false };
+}
+
+/**
+ * Отправка карточки со схемой. Возвращает `null`, если схему отправить не вышло —
+ * тогда карточка уйдёт обычным сообщением: задание и техника важнее картинки, и
+ * тренировка не должна вставать из-за медиа.
+ */
+async function sendWithDemo(
+  ctx: Context,
+  deps: BotDeps,
+  demo: Demo,
+  code: string,
+  caption: object,
+): Promise<{ messageId: number; media: boolean } | null> {
+  let message;
+  try {
+    message =
+      demo.kind === 'photo'
+        ? await ctx.replyWithPhoto(demo.file, caption)
+        : demo.kind === 'video'
+          ? await ctx.replyWithVideo(demo.file, caption)
+          : await ctx.replyWithAnimation(demo.file, caption);
+  } catch (failure) {
+    console.error(`не удалось отправить схему ${code}`, failure);
+    return null;
+  }
+
+  // Кеш `file_id` — оптимизация, а не часть сценария: он экономит загрузку файла
+  // (ADR-014), но упасть на нём и оставить тренировку без следующего шага нельзя.
+  // Почти статичную гифку Telegram отдаёт документом, и поля `animation` в ответе нет.
+  const fileId = 'animation' in message ? message.animation.file_id : undefined;
+  if (demo.fromBundle && fileId !== undefined) {
+    try {
+      await cacheBuiltinMedia(deps.db, code, fileId);
+    } catch (failure) {
+      console.error(`не удалось запомнить file_id для ${code}`, failure);
+    }
+  }
+
   return { messageId: message.message_id, media: true };
 }
 

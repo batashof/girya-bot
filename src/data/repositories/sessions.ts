@@ -96,9 +96,17 @@ export async function recordSets(
     records.map((record) =>
       db
         .prepare(
+          // Повторное нажатие той же кнопки переписывает подход, а не добавляет второй:
+          // карточка могла уйти в чат, а состояние — не сохраниться (migrations/0006).
           `INSERT INTO session_sets
              (session_id, position, exercise_code, set_index, target_value, actual_value, weight, feedback)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (session_id, position, set_index) DO UPDATE SET
+             exercise_code = excluded.exercise_code,
+             target_value  = excluded.target_value,
+             actual_value  = excluded.actual_value,
+             weight        = excluded.weight,
+             feedback      = excluded.feedback`,
         )
         .bind(
           sessionId,
