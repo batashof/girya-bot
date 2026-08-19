@@ -1,5 +1,6 @@
 import { InlineKeyboard, type Bot, type Context } from 'grammy';
 import { loadProgression, saveProgression } from '../../data/repositories/progression';
+import { cacheBuiltinMedia, loadMedia } from '../../data/repositories/media';
 import {
   ensurePlannedSession,
   finishSession,
@@ -19,13 +20,15 @@ import { addDays, localMoment, nextWeekday } from '../../domain/time';
 import type { Exercise, Feedback, PlannedItem, User } from '../../domain/types';
 import { loadDay, type Day } from '../day';
 import { currentStreak } from '../streak';
+import { resolveDemo } from '../demo';
 import { buttons, texts } from '../ui/texts';
-import { renderCard, renderFinish, weekdayName } from '../ui/workout';
+import { renderCard, renderDone, renderFinish, weekdayName } from '../ui/workout';
 import { userIdOf, type BotDeps } from '../deps';
 
 /**
- * Пошаговый режим (docs/04-bot-ux.md): одно сообщение, которое редактируется на месте,
- * одна кнопка на подход. Позиция хранится в `ui_state`, факт — сразу в `session_sets`.
+ * Пошаговый режим (docs/04-bot-ux.md): одно сообщение на упражнение, со схемой движения
+ * в картинке и прогресс-баром в шапке. Подходы внутри упражнения перерисовываются на месте,
+ * пройденное сворачивается в строку. Позиция хранится в `ui_state`, факт — сразу в `session_sets`.
  */
 
 const SCREEN = 'workout';
@@ -39,6 +42,9 @@ const SHORT_MINUTES = 7;
 /** На сколько откладывает кнопка «Через час». */
 const SNOOZE_MINUTES = 60;
 
+/** Лимит подписи к медиа в Telegram. Карточка длиннее уедет обычным сообщением. */
+const CAPTION_LIMIT = 1024;
+
 interface State {
   sessionId: number;
   /** Индекс шага в разбиении тренировки, 0-based. */
@@ -46,6 +52,8 @@ interface State {
   /** Номер подхода внутри шага, 1-based. */
   set: number;
   messageId: number;
+  /** У карточки с картинкой правится подпись, а не текст. */
+  media: boolean;
 }
 
 export function registerWorkout(bot: Bot, deps: BotDeps): void {
@@ -95,16 +103,12 @@ async function start(ctx: Context, deps: BotDeps, budgetMinutes?: number): Promi
     return;
   }
 
-  const step = steps[position.step]!;
-  const message = await ctx.reply(renderCard(step, steps.length, position.set), {
-    reply_markup: cardKeyboard(step),
-  });
-
+  const card = await sendCard(ctx, deps, steps, position.step, position.set);
   await setUiState<State>(deps.db, user.telegramId, SCREEN, {
     sessionId: session.id,
     step: position.step,
     set: position.set,
-    messageId: message.message_id,
+    ...card,
   });
 }
 
@@ -185,55 +189,150 @@ async function advanceStep(
     deps.db,
     state.sessionId,
     recordsForStep(step, state.set, feedback),
-    step.items[0]?.weight ?? null,
+    step.item.weight,
   );
 
   // «Больно» и «пропустить» снимают всё упражнение, а не один подход:
   // добивать через боль — ровно то, чего программа не делает (docs/10).
   const dropsExercise = feedback === 'pain' || feedback === 'skipped';
-  const next =
-    !dropsExercise && state.set < step.sets
-      ? { step: state.step, set: state.set + 1 }
-      : { step: state.step + 1, set: 1 };
+  const nextSet = !dropsExercise && state.set < step.sets;
+
+  if (nextSet) {
+    const next = { ...state, set: state.set + 1 };
+    await redrawCard(ctx, deps, user, next, steps);
+    return;
+  }
+
+  // Упражнение закончилось: его сообщение сворачивается в строку итога и остаётся
+  // в чате как история, а следующее приходит новым сообщением.
+  await collapseCard(ctx, user, state, renderDone(step, doneMark(feedback)));
 
   if (feedback === 'pain') {
     await ctx.reply(texts.workout.pain);
   }
 
-  if (next.step >= steps.length) {
+  const nextStep = state.step + 1;
+  if (nextStep >= steps.length) {
     await complete(ctx, deps, user, state.sessionId, day);
     return;
   }
 
-  await showCard(ctx, deps, user, { ...state, ...next }, steps);
+  const card = await sendCard(ctx, deps, steps, nextStep, 1);
+  await setUiState<State>(deps.db, user.telegramId, SCREEN, {
+    ...state,
+    step: nextStep,
+    set: 1,
+    ...card,
+  });
 }
 
-async function showCard(
+function doneMark(feedback: Feedback): 'done' | 'skipped' | 'pain' {
+  if (feedback === 'pain') {
+    return 'pain';
+  }
+  return feedback === 'skipped' ? 'skipped' : 'done';
+}
+
+/** Новая карточка упражнения: схема движения плюс задание в подписи. */
+async function sendCard(
+  ctx: Context,
+  deps: BotDeps,
+  steps: WorkoutStep[],
+  stepIndex: number,
+  setIndex: number,
+): Promise<{ messageId: number; media: boolean }> {
+  const step = steps[stepIndex];
+  const text = renderCard(steps, stepIndex, setIndex);
+  const options = { parse_mode: 'HTML' as const, reply_markup: cardKeyboard(step) };
+
+  const code = step?.item.exercise.code;
+  const demo = code === undefined ? null : resolveDemo(code, await loadMedia(deps.db));
+
+  // Схема не должна съедать технику: если подпись не влезает, картинку не шлём.
+  if (demo === null || text.length > CAPTION_LIMIT) {
+    const message = await ctx.reply(text, options);
+    return { messageId: message.message_id, media: false };
+  }
+
+  const caption = { caption: text, ...options };
+  if (demo.kind === 'animation') {
+    const message = await ctx.replyWithAnimation(demo.file, caption);
+    if (demo.fromBundle && code !== undefined) {
+      // Файл ушёл один раз — дальше Telegram отдаёт его по `file_id` бесплатно (ADR-014).
+      await cacheBuiltinMedia(deps.db, code, message.animation.file_id);
+    }
+    return { messageId: message.message_id, media: true };
+  }
+
+  const message =
+    demo.kind === 'photo'
+      ? await ctx.replyWithPhoto(demo.file, caption)
+      : await ctx.replyWithVideo(demo.file, caption);
+  return { messageId: message.message_id, media: true };
+}
+
+/** Следующий подход того же упражнения: карточка перерисовывается на месте. */
+async function redrawCard(
   ctx: Context,
   deps: BotDeps,
   user: User,
   state: State,
   steps: WorkoutStep[],
 ): Promise<void> {
-  const step = steps[state.step];
-  if (step === undefined) {
-    return;
-  }
-  const text = renderCard(step, steps.length, state.set);
+  const text = renderCard(steps, state.step, state.set);
+  const keyboard = cardKeyboard(steps[state.step]);
 
   try {
-    await ctx.api.editMessageText(user.telegramId, state.messageId, text, {
-      reply_markup: cardKeyboard(step),
-    });
+    await editCard(ctx, user, state, text, keyboard);
     await setUiState<State>(deps.db, user.telegramId, SCREEN, state);
     return;
   } catch {
     // Сообщение могло быть удалено руками — тогда просто продолжаем новым.
-    const message = await ctx.reply(text, { reply_markup: cardKeyboard(step) });
-    await setUiState<State>(deps.db, user.telegramId, SCREEN, {
-      ...state,
-      messageId: message.message_id,
+    const card = await sendCard(ctx, deps, steps, state.step, state.set);
+    await setUiState<State>(deps.db, user.telegramId, SCREEN, { ...state, ...card });
+  }
+}
+
+function editCard(
+  ctx: Context,
+  user: User,
+  state: State,
+  text: string,
+  keyboard: InlineKeyboard,
+): Promise<unknown> {
+  if (state.media) {
+    return ctx.api.editMessageCaption(user.telegramId, state.messageId, {
+      caption: text,
+      parse_mode: 'HTML',
+      reply_markup: keyboard,
     });
+  }
+  return ctx.api.editMessageText(user.telegramId, state.messageId, text, {
+    parse_mode: 'HTML',
+    reply_markup: keyboard,
+  });
+}
+
+/** Пройденное упражнение сжимается в одну строку без кнопок. */
+async function collapseCard(
+  ctx: Context,
+  user: User,
+  state: State,
+  summary: string,
+): Promise<void> {
+  try {
+    if (state.media) {
+      await ctx.api.editMessageCaption(user.telegramId, state.messageId, {
+        caption: summary,
+        parse_mode: 'HTML',
+      });
+      return;
+    }
+    await ctx.api.editMessageText(user.telegramId, state.messageId, summary, {
+      parse_mode: 'HTML',
+    });
+  } catch {
+    // Не удалось свернуть — не повод ронять тренировку.
   }
 }
 
@@ -280,7 +379,9 @@ async function complete(
   const streak = await currentStreak(deps.db, user, day.moment.date);
   const tomorrow = await describeTomorrow(deps, user, day);
 
-  await ctx.reply(renderFinish({ minutes, streak, tomorrow, levelUps }));
+  await ctx.reply(renderFinish({ minutes, streak, tomorrow, levelUps }), {
+    parse_mode: 'HTML',
+  });
 }
 
 function describeChange(
@@ -410,8 +511,11 @@ async function applySwap(ctx: Context, deps: BotDeps, toCode: string): Promise<v
   if (stored?.screen === SCREEN) {
     const refreshed = await loadDay(deps.db, user, day.moment);
     if (refreshed !== null) {
+      // Упражнение сменилось — старую карточку не правим, а шлём новую со своей схемой.
       const steps = toSteps(refreshed.workout);
-      await showCard(ctx, deps, user, stored.payload, steps);
+      const state = stored.payload;
+      const card = await sendCard(ctx, deps, steps, state.step, state.set);
+      await setUiState<State>(deps.db, user.telegramId, SCREEN, { ...state, ...card });
     }
   }
 }
@@ -421,8 +525,8 @@ function currentItem(day: Day, state: State | null): PlannedItem | null {
   const steps = toSteps(day.workout);
   if (state !== null) {
     const step = steps[state.step];
-    if (step !== undefined && step.kind === 'exercise') {
-      return step.items[0] ?? null;
+    if (step !== undefined) {
+      return step.item;
     }
   }
   return day.workout.items.find((item) => item.block === 'main') ?? null;
@@ -453,11 +557,7 @@ function resumePosition(
   records: { position: number; setIndex: number; feedback: Feedback }[],
 ): { step: number; set: number } | null {
   for (const step of steps) {
-    const position = step.items[0]?.position;
-    if (position === undefined) {
-      continue;
-    }
-    const own = records.filter((record) => record.position === position);
+    const own = records.filter((record) => record.position === step.item.position);
     if (own.some((record) => record.feedback === 'pain' || record.feedback === 'skipped')) {
       continue;
     }
@@ -491,16 +591,20 @@ async function currentContext(
   return { user, day };
 }
 
+/**
+ * Кнопки карточки. Первым рядом — переход к следующему подходу, вторым — то же самое,
+ * но с пометкой, куда двигать прогрессию, третьим — выходы из упражнения.
+ */
 function cardKeyboard(step?: WorkoutStep): InlineKeyboard {
   const keyboard = new InlineKeyboard()
     .text(buttons.setDone, 'w:done')
+    .row()
     .text(buttons.setHard, 'w:hard')
     .text(buttons.setEasy, 'w:easy')
     .row()
     .text(buttons.setPain, 'w:pain')
     .text(buttons.setSkip, 'w:skip');
 
-  // У шейного протокола техника уже расписана в самой карточке, кнопка там лишняя.
-  const code = step?.kind === 'exercise' ? step.items[0]?.exercise.code : undefined;
+  const code = step?.item.exercise.code;
   return code === undefined ? keyboard : keyboard.row().text(buttons.howto, `h:${code}`);
 }

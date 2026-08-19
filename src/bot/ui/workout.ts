@@ -1,9 +1,15 @@
 import type { PlannedItem, Workout } from '../../domain/types';
-import type { WorkoutStep } from '../../domain/session';
+import {
+  remainingSeconds,
+  secondsPerSet,
+  setsBefore,
+  totalSets,
+  type WorkoutStep,
+} from '../../domain/session';
 import { estimateSeconds } from '../../domain/program';
 import { plural } from './plural';
 
-/** Отрисовка тренировки текстом (docs/04-bot-ux.md). */
+/** Отрисовка тренировки текстом (docs/04-bot-ux.md). Разметка — HTML. */
 
 const WEEKDAY_NAMES = [
   'Понедельник',
@@ -17,15 +23,18 @@ const WEEKDAY_NAMES = [
 
 const TEMPO_LABEL: Record<string, string> = {
   normal: '',
-  slow: ', темп 3-1-3',
-  pause: ', с паузой',
+  slow: 'темп 3-1-3',
+  pause: 'с паузой',
 };
+
+/** Длина прогресс-бара в символах. Восемь читаются на телефоне одной строкой. */
+const BAR_WIDTH = 8;
 
 /**
  * Темп подписывается только там, где его не назвал вариант ступени: в лестницах
  * «темп 3-1-3» и «пауза 2 с» и так стоят в названии варианта, дважды не нужно.
  */
-function tempoSuffix(item: PlannedItem): string {
+function tempoLabel(item: PlannedItem): string {
   return item.variant === null ? (TEMPO_LABEL[item.tempo] ?? '') : '';
 }
 
@@ -33,9 +42,13 @@ export function weekdayName(weekday: number): string {
   return WEEKDAY_NAMES[weekday - 1] ?? '';
 }
 
+export function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export function renderWorkout(workout: Workout, weekday: number): string {
   const lines = [
-    `🏋️ ${weekdayName(weekday)} — ${workout.title}`,
+    `🏋️ <b>${escapeHtml(weekdayName(weekday))} — ${escapeHtml(workout.title)}</b>`,
     `~${workout.estimatedMinutes} мин · неделя ${workout.weekInBlock} из 4${workout.deload ? ' (разгрузочная)' : ''}`,
     '',
   ];
@@ -62,8 +75,9 @@ interface Group {
 }
 
 /**
- * Шейный протокол показывается одной строкой: это семь упражнений, но один пункт дня,
- * и разворачивать его в списке — значит утопить в нём остальные три упражнения.
+ * В плане дня шейный протокол показывается одной строкой: это семь упражнений, но один
+ * пункт дня, и разворачивать его в списке — значит утопить в нём остальные три.
+ * В пошаговом режиме, наоборот, каждое идёт своей карточкой.
  */
 function groupItems(items: PlannedItem[]): Group[] {
   const groups: Group[] = [];
@@ -85,71 +99,143 @@ function groupItems(items: PlannedItem[]): Group[] {
 function renderGroup(group: Group): string {
   if (group.kind === 'neck') {
     const seconds = group.items.reduce((sum, item) => sum + estimateSeconds(item), 0);
-    return `Шейный протокол — ${Math.max(1, Math.round(seconds / 60))} мин`;
+    return `Шейный протокол, ${group.items.length} упр. — ${Math.max(1, Math.round(seconds / 60))} мин`;
   }
   const item = group.items[0];
-  return item === undefined ? '' : renderItem(item);
+  return item === undefined ? '' : escapeHtml(renderItem(item));
 }
 
-/** Карточка пошагового режима: одно сообщение, которое редактируется на месте (docs/04). */
-export function renderCard(step: WorkoutStep, total: number, setIndex: number): string {
-  const header = `${step.index + 1}/${total} · ${stepTitle(step)}`;
-  const progress = step.sets > 1 ? `подход ${setIndex} из ${step.sets}` : '';
-  const lines = [progress === '' ? header : `${header}   ·   ${progress}`, '─'.repeat(28)];
-
-  if (step.kind === 'neck') {
-    lines.push('Круг без пауз, усилие 30–50%, без резких движений:');
-    for (const item of step.items) {
-      lines.push('', `• ${renderItem(item)}`);
-      // Техника нужна и здесь: протокол — семь упражнений подряд, и без подсказок
-      // он превращается в список названий.
-      lines.push(`  ${item.exercise.cues}`);
-    }
-    return lines.join('\n');
+/**
+ * Карточка одного упражнения: своё сообщение на каждое, подходы внутри перерисовываются
+ * на месте. Порядок блоков всегда один и тот же, чтобы глаз не искал: где я → что за
+ * упражнение → сколько делать → сколько это займёт → как делать (docs/04).
+ */
+export function renderCard(steps: WorkoutStep[], stepIndex: number, setIndex: number): string {
+  const step = steps[stepIndex];
+  if (step === undefined) {
+    return '';
   }
+  const { item } = step;
 
-  const item = step.items[0];
-  if (item === undefined) {
-    return lines.join('\n');
+  const done = setsBefore(steps, stepIndex, setIndex);
+  const lines = [
+    `${progressBar(done, totalSets(steps))} упражнение ${stepIndex + 1} из ${steps.length}`,
+    `Осталось ~${minutesLeft(remainingSeconds(steps, stepIndex, setIndex))} мин`,
+    '',
+    `<b>${escapeHtml(stepTitle(step))}</b>`,
+  ];
+
+  if (step.sets > 1) {
+    lines.push(`Подход ${setIndex} из ${step.sets}`);
   }
-  lines.push(renderSetLine(item));
-  lines.push('');
-  lines.push(item.exercise.cues);
+  lines.push('', ...taskLines(step));
+
+  const cues = cueLines(item.exercise.cues);
+  if (cues.length > 0) {
+    lines.push('', 'Как делать:');
+    lines.push(...cues.map((cue, index) => `${index + 1}. ${escapeHtml(cue)}`));
+  }
   if (item.exercise.mistakes !== null) {
-    lines.push(`Не надо: ${item.exercise.mistakes.toLowerCase()}`);
+    lines.push('', `⚠️ Не надо: ${escapeHtml(lowerFirst(item.exercise.mistakes))}`);
   }
+
   return lines.join('\n');
 }
 
 /**
- * Задание на один подход: заголовок карточки уже назвал упражнение и номер подхода,
- * поэтому здесь только «сколько и с чем».
+ * «Сколько делать» и «сколько это займёт» — две отдельные строки, потому что раньше
+ * повторы, подходы и секунды удержания сливались в одну и различить их было нельзя.
  */
-function renderSetLine(item: PlannedItem): string {
-  const weight = item.weight === null ? '' : `${formatWeight(item.weight)} кг × `;
-  const side = item.unilateral ? ' на сторону' : '';
-  return `${weight}${withUnit(item)}${side}${tempoSuffix(item)}`;
+function taskLines(step: WorkoutStep): string[] {
+  const { item } = step;
+  const lines: string[] = [];
+  const side = item.unilateral ? ' на каждую сторону' : '';
+
+  if (item.unit === 'seconds') {
+    lines.push(
+      `⏱ Держать ${item.target} ${plural(item.target, 'секунду', 'секунды', 'секунд')}${side}`,
+    );
+  } else {
+    lines.push(`🔁 ${amount(item)}${side}`);
+    lines.push(`⏱ Примерно ${seconds(secondsPerSet(step))} на подход`);
+  }
+
+  const load = loadLine(item);
+  if (load !== '') {
+    lines.push(`🏋️ ${escapeHtml(load)}`);
+  }
+  // У шага в один подход строки про отдых нет: отдыхать не между чем.
+  if (step.sets > 1 && item.restSec > 0) {
+    lines.push(`😮‍💨 Отдых между подходами ${seconds(item.restSec)}`);
+  }
+  return lines;
 }
 
-function withUnit(item: PlannedItem): string {
+function amount(item: PlannedItem): string {
   switch (item.unit) {
     case 'reps':
       return `${item.target} ${plural(item.target, 'повтор', 'повтора', 'повторов')}`;
-    case 'seconds':
-      return item.target >= 60 ? `${Math.round(item.target / 60)} мин` : `${item.target} с`;
     case 'steps':
       return `${item.target} ${plural(item.target, 'шаг', 'шага', 'шагов')}`;
+    case 'seconds':
+      return `${item.target} ${plural(item.target, 'секунда', 'секунды', 'секунд')}`;
   }
 }
 
-export function stepTitle(step: WorkoutStep): string {
-  if (step.kind === 'neck') {
-    return 'Шейный протокол';
+function loadLine(item: PlannedItem): string {
+  const parts: string[] = [];
+  if (item.weight !== null) {
+    parts.push(`Гиря ${formatWeight(item.weight)} кг`);
   }
-  const item = step.items[0];
-  if (item === undefined) {
+  const tempo = tempoLabel(item);
+  if (tempo !== '') {
+    parts.push(tempo);
+  }
+  return parts.join(', ');
+}
+
+/** Строка-итог для уже пройденного упражнения: сообщение остаётся в чате, но сжимается. */
+export function renderDone(step: WorkoutStep, feedback: 'done' | 'skipped' | 'pain'): string {
+  const mark = feedback === 'done' ? '✅' : feedback === 'pain' ? '🤕' : '⏭';
+  const tail = feedback === 'done' ? '' : feedback === 'pain' ? ' — снято, больно' : ' — пропущено';
+  return `${mark} ${escapeHtml(stepTitle(step))} · ${escapeHtml(volume(step))}${tail}`;
+}
+
+function volume(step: WorkoutStep): string {
+  const { item } = step;
+  const target = item.unit === 'seconds' ? `${item.target} с` : String(item.target);
+  return step.sets > 1 ? `${step.sets}×${target}` : target;
+}
+
+/**
+ * Техника разбивается на шаги: одна слипшаяся строка читается как абзац, а нужен порядок
+ * действий — «сначала это, потом это». Разделитель — точка в конце предложения.
+ */
+function cueLines(cues: string): string[] {
+  return cues
+    .split(/(?<=[.!?])\s+/)
+    .map((line) => line.trim().replace(/\.$/, ''))
+    .filter((line) => line !== '');
+}
+
+export function progressBar(done: number, total: number): string {
+  if (total <= 0) {
     return '';
   }
+  const filled = Math.min(BAR_WIDTH, Math.round((done / total) * BAR_WIDTH));
+  return `${'▰'.repeat(filled)}${'▱'.repeat(BAR_WIDTH - filled)}`;
+}
+
+function minutesLeft(secondsTotal: number): number {
+  return Math.max(1, Math.round(secondsTotal / 60));
+}
+
+function seconds(value: number): string {
+  return value >= 90 ? `${Math.round(value / 60)} мин` : `${value} с`;
+}
+
+export function stepTitle(step: WorkoutStep): string {
+  const { item } = step;
   return item.variant === null ? item.exercise.name : `${item.exercise.name}, ${item.variant}`;
 }
 
@@ -159,15 +245,15 @@ export function renderFinish(options: {
   tomorrow: string | null;
   levelUps: string[];
 }): string {
-  const lines = [`✅ Готово за ${Math.max(1, options.minutes)} мин.`];
+  const lines = [`✅ <b>Готово за ${Math.max(1, options.minutes)} мин.</b>`];
   if (options.streak > 0) {
     lines.push(`Серия: ${options.streak} ${plural(options.streak, 'день', 'дня', 'дней')} 🔥`);
   }
   for (const message of options.levelUps) {
-    lines.push(message);
+    lines.push(escapeHtml(message));
   }
   if (options.tomorrow !== null) {
-    lines.push(`Завтра: ${options.tomorrow}.`);
+    lines.push(`Завтра: ${escapeHtml(options.tomorrow)}.`);
   }
   return lines.join('\n');
 }
@@ -177,7 +263,9 @@ export function renderItem(item: PlannedItem): string {
     item.variant === null ? item.exercise.name : `${item.exercise.name}, ${item.variant}`;
   const weight = item.weight === null ? '' : ` ${formatWeight(item.weight)} кг`;
   const side = item.unilateral ? ' / сторону' : '';
-  return `${name}${weight}${tempoSuffix(item)} — ${item.sets}×${formatTarget(item)}${side}`;
+  const tempo = tempoLabel(item);
+  const suffix = tempo === '' ? '' : `, ${tempo}`;
+  return `${name}${weight}${suffix} — ${item.sets}×${formatTarget(item)}${side}`;
 }
 
 function formatTarget(item: PlannedItem): string {
@@ -193,4 +281,8 @@ function formatTarget(item: PlannedItem): string {
 
 function formatWeight(weight: number): string {
   return Number.isInteger(weight) ? String(weight) : weight.toFixed(1);
+}
+
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
 }

@@ -1,9 +1,9 @@
-import { InlineKeyboard, InputFile, type Bot, type Context } from 'grammy';
+import { InlineKeyboard, type Bot, type Context } from 'grammy';
 import { loadChainSteps, loadExercises } from '../../data/repositories/exercises';
-import { getMedia, saveMedia } from '../../data/repositories/media';
+import { cacheBuiltinMedia, loadMedia, saveMedia } from '../../data/repositories/media';
 import type { Exercise } from '../../domain/types';
+import { resolveDemo } from '../demo';
 import { demoLink, renderHowto } from '../ui/howto';
-import { BUILTIN_DEMOS } from '../ui/demos.generated';
 import { buttons, texts } from '../ui/texts';
 import { type BotDeps } from '../deps';
 
@@ -48,39 +48,33 @@ async function showHowto(ctx: Context, deps: BotDeps, query: string): Promise<vo
     return;
   }
 
-  const [steps, media] = await Promise.all([
-    loadChainSteps(deps.db),
-    getMedia(deps.db, exercise.code),
-  ]);
+  const [steps, media] = await Promise.all([loadChainSteps(deps.db), loadMedia(deps.db)]);
+  const demo = resolveDemo(exercise.code, media);
 
-  // Своя присланная демонстрация важнее встроенной схемы: она конкретнее.
-  const builtin = BUILTIN_DEMOS[exercise.code];
-  const animation =
-    media !== null
-      ? media.fileId
-      : builtin === undefined
-        ? null
-        : new InputFile(new Uint8Array(builtin), `${exercise.code}.gif`);
-
-  const text = renderHowto({
-    exercise,
-    steps,
-    hasMedia: media !== null || builtin !== undefined,
-  });
+  const text = renderHowto({ exercise, steps, hasMedia: demo !== null });
   const keyboard = new InlineKeyboard().url(buttons.demo, demoLink(exercise));
 
-  if (animation === null) {
+  if (demo === null) {
     await ctx.reply(text, { reply_markup: keyboard });
     return;
   }
 
   // Подпись у медиа ограничена 1024 символами — длинную технику шлём отдельным сообщением.
-  if (text.length <= 1000) {
-    await ctx.replyWithAnimation(animation, { caption: text, reply_markup: keyboard });
-    return;
+  const caption = text.length <= 1000 ? { caption: text, reply_markup: keyboard } : {};
+  if (demo.kind === 'animation') {
+    const message = await ctx.replyWithAnimation(demo.file, caption);
+    if (demo.fromBundle) {
+      await cacheBuiltinMedia(deps.db, exercise.code, message.animation.file_id);
+    }
+  } else if (demo.kind === 'photo') {
+    await ctx.replyWithPhoto(demo.file, caption);
+  } else {
+    await ctx.replyWithVideo(demo.file, caption);
   }
-  await ctx.replyWithAnimation(animation);
-  await ctx.reply(text, { reply_markup: keyboard });
+
+  if (text.length > 1000) {
+    await ctx.reply(text, { reply_markup: keyboard });
+  }
 }
 
 async function attachMedia(ctx: Context, deps: BotDeps, code: string): Promise<void> {
@@ -108,7 +102,7 @@ async function attachMedia(ctx: Context, deps: BotDeps, code: string): Promise<v
       : message?.video !== undefined
         ? 'video'
         : 'photo';
-  await saveMedia(deps.db, { exerciseCode: exercise.code, fileId, kind });
+  await saveMedia(deps.db, { exerciseCode: exercise.code, fileId, kind, source: 'user' });
   await ctx.reply(texts.howto.gifSaved(exercise.name, exercise.code));
 }
 

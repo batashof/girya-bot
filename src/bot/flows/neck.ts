@@ -62,7 +62,7 @@ async function recordScore(ctx: Context, deps: BotDeps, score: 0 | 1 | 2 | 3): P
     parts.push(texts.neck.redFlags);
   }
 
-  await ctx.reply(parts.join('\n'), { reply_markup: dayKeyboard() });
+  await ctx.reply(parts.join('\n'), { parse_mode: 'HTML', reply_markup: dayKeyboard() });
 }
 
 /** Кнопки под планом дня из утреннего сценария (docs/04). */

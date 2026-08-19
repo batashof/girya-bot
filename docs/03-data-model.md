@@ -20,7 +20,7 @@ CREATE TABLE users (
   level            TEXT NOT NULL DEFAULT 'base',   -- base | strong (стартовый уровень лестниц)
   has_pullup_bar   INTEGER NOT NULL DEFAULT 0,
   has_band         INTEGER NOT NULL DEFAULT 0,
-  has_backpack     INTEGER NOT NULL DEFAULT 1,     -- рюкзак с книгами = регулируемый вес
+  has_backpack     INTEGER NOT NULL DEFAULT 0,     -- как и турник с резиной: по умолчанию нет
   block_start      TEXT NOT NULL,                  -- дата начала 4-недельного блока
   paused_from      TEXT,                           -- пауза — диапазон, а не дедлайн
   paused_until     TEXT,
@@ -185,8 +185,12 @@ CREATE TABLE exercise_media (
   exercise_code TEXT PRIMARY KEY REFERENCES exercises(code),
   file_id       TEXT NOT NULL,
   kind          TEXT NOT NULL DEFAULT 'animation', -- animation | photo | video
+  source        TEXT NOT NULL DEFAULT 'user',      -- user | builtin
   added_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- source = 'builtin' — кеш file_id для встроенной схемы из бандла: после первой
+-- отправки файл больше не грузится. Своя гифка (`/gif`) пишется с source = 'user'
+-- и такой кеш никогда не перетирает.
 
 -- Минимальный аудит
 CREATE TABLE events (

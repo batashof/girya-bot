@@ -26,6 +26,7 @@ export function registerToday(bot: Bot, deps: BotDeps): void {
     }
 
     await ctx.reply(renderWorkout(day.workout, moment.weekday), {
+      parse_mode: 'HTML',
       reply_markup: new InlineKeyboard().text(buttons.start, 'w:start'),
     });
   });

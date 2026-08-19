@@ -6,6 +6,7 @@ import { getUser } from '../../data/repositories/users';
 import { weekInBlock } from '../../domain/program';
 import { localMoment } from '../../domain/time';
 import type { SetRecord } from '../../domain/types';
+import { escapeHtml } from '../ui/workout';
 import { texts } from '../ui/texts';
 import { userIdOf, type BotDeps } from '../deps';
 
@@ -56,21 +57,30 @@ async function showBlock(ctx: Context, deps: BotDeps, code: string): Promise<voi
     return;
   }
 
-  const lines = [`${template.title} — ${template.estMinutes} мин`, ''];
+  const lines = [`<b>${escapeHtml(template.title)}</b> — ${template.estMinutes} мин`, ''];
+  const keyboard = new InlineKeyboard();
   for (const item of template.items) {
     const exercise = exercises.get(item.exerciseCode);
     if (exercise === undefined) {
       continue;
     }
-    const side = exercise.unilateral ? ' / сторону' : '';
+    const side = exercise.unilateral ? ' на каждую сторону' : '';
     const unit = exercise.unit === 'seconds' ? ' с' : '';
-    lines.push(`• ${exercise.name} — ${item.targetMin}${unit}${side}`);
-    lines.push(`  ${exercise.cues}`);
+    lines.push(`• <b>${escapeHtml(exercise.name)}</b> — ${item.targetMin}${unit}${side}`);
+    // В микро-блоке нужна первая фраза, а не вся техника: это три минуты между делами,
+    // а не тренировка. Полная техника со схемой — по кнопке под сообщением.
+    lines.push(`  ${escapeHtml(firstSentence(exercise.cues))}`);
+    keyboard.text(exercise.name, `h:${exercise.code}`).row();
   }
+  keyboard.text(texts.mini.doneButton, `m:done:${code}`);
 
-  await ctx.reply(lines.join('\n'), {
-    reply_markup: new InlineKeyboard().text(texts.mini.doneButton, `m:done:${code}`),
-  });
+  await ctx.reply(lines.join('\n'), { parse_mode: 'HTML', reply_markup: keyboard });
+}
+
+/** Первое предложение подсказки: остальное живёт в `/howto` и в схеме движения. */
+function firstSentence(cues: string): string {
+  const [first = cues] = cues.split(/(?<=[.!?])\s+/);
+  return first;
 }
 
 async function finishBlock(ctx: Context, deps: BotDeps, code: string): Promise<void> {

@@ -68,7 +68,10 @@ async function send(db: D1Database, api: Api, user: User, kind: ReminderKind): P
         day === null
           ? texts.noTemplate
           : `${renderWorkout(day.workout, day.moment.weekday)}\n\n${texts.neck.question}`;
-      await api.sendMessage(user.telegramId, header, { reply_markup: neckKeyboard() });
+      await api.sendMessage(user.telegramId, header, {
+        parse_mode: 'HTML',
+        reply_markup: neckKeyboard(),
+      });
       return;
     }
     case 'evening': {

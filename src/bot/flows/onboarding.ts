@@ -269,7 +269,9 @@ async function finish(ctx: Context, deps: BotDeps): Promise<void> {
   if (tomorrow === null) {
     return;
   }
-  await ctx.reply(`${texts.onboarding.tomorrow}\n\n${renderWorkout(tomorrow.workout, weekday)}`);
+  await ctx.reply(`${texts.onboarding.tomorrow}\n\n${renderWorkout(tomorrow.workout, weekday)}`, {
+    parse_mode: 'HTML',
+  });
 }
 
 async function save(deps: BotDeps, userId: number, state: State): Promise<void> {
