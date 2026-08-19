@@ -243,7 +243,7 @@ async function sendCard(
 ): Promise<{ messageId: number; media: boolean }> {
   const step = steps[stepIndex];
   const text = renderCard(steps, stepIndex, setIndex);
-  const options = { parse_mode: 'HTML' as const, reply_markup: cardKeyboard(step) };
+  const options = { parse_mode: 'HTML' as const, reply_markup: cardKeyboard() };
 
   const code = step?.item.exercise.code;
   const demo = code === undefined ? null : resolveDemo(code, await loadMedia(deps.db));
@@ -280,7 +280,7 @@ async function redrawCard(
   steps: WorkoutStep[],
 ): Promise<void> {
   const text = renderCard(steps, state.step, state.set);
-  const keyboard = cardKeyboard(steps[state.step]);
+  const keyboard = cardKeyboard();
 
   try {
     await editCard(ctx, user, state, text, keyboard);
@@ -592,19 +592,16 @@ async function currentContext(
 }
 
 /**
- * Кнопки карточки. Первым рядом — переход к следующему подходу, вторым — то же самое,
- * но с пометкой, куда двигать прогрессию, третьим — выходы из упражнения.
+ * Кнопки карточки. Первый ряд — шкала «как прошло»: она же переход к следующему подходу,
+ * она же вход прогрессии (docs/05). Второй ряд — выходы из упражнения, у них подписи
+ * остались: мимо шкалы туда попадать не должно.
  */
-function cardKeyboard(step?: WorkoutStep): InlineKeyboard {
-  const keyboard = new InlineKeyboard()
-    .text(buttons.setDone, 'w:done')
-    .row()
+function cardKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
     .text(buttons.setHard, 'w:hard')
+    .text(buttons.setDone, 'w:done')
     .text(buttons.setEasy, 'w:easy')
     .row()
     .text(buttons.setPain, 'w:pain')
     .text(buttons.setSkip, 'w:skip');
-
-  const code = step?.item.exercise.code;
-  return code === undefined ? keyboard : keyboard.row().text(buttons.howto, `h:${code}`);
 }

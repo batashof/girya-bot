@@ -57,8 +57,7 @@ async function showBlock(ctx: Context, deps: BotDeps, code: string): Promise<voi
     return;
   }
 
-  const lines = [`<b>${escapeHtml(template.title)}</b> — ${template.estMinutes} мин`, ''];
-  const keyboard = new InlineKeyboard();
+  const lines = [`<b>${escapeHtml(template.title)}</b> — ${template.estMinutes} мин`];
   for (const item of template.items) {
     const exercise = exercises.get(item.exerciseCode);
     if (exercise === undefined) {
@@ -66,21 +65,16 @@ async function showBlock(ctx: Context, deps: BotDeps, code: string): Promise<voi
     }
     const side = exercise.unilateral ? ' на каждую сторону' : '';
     const unit = exercise.unit === 'seconds' ? ' с' : '';
-    lines.push(`• <b>${escapeHtml(exercise.name)}</b> — ${item.targetMin}${unit}${side}`);
-    // В микро-блоке нужна первая фраза, а не вся техника: это три минуты между делами,
-    // а не тренировка. Полная техника со схемой — по кнопке под сообщением.
-    lines.push(`  ${escapeHtml(firstSentence(exercise.cues))}`);
-    keyboard.text(exercise.name, `h:${exercise.code}`).row();
+    lines.push('', `<b>${escapeHtml(exercise.name)}</b> — ${item.targetMin}${unit}${side}`);
+    // Техника целиком: отдельного экрана с ней больше нет (ADR-015), а три минуты
+    // между делами не стоят того, чтобы разворачивать их в карточки с кнопками.
+    lines.push(escapeHtml(exercise.cues));
   }
-  keyboard.text(texts.mini.doneButton, `m:done:${code}`);
 
-  await ctx.reply(lines.join('\n'), { parse_mode: 'HTML', reply_markup: keyboard });
-}
-
-/** Первое предложение подсказки: остальное живёт в `/howto` и в схеме движения. */
-function firstSentence(cues: string): string {
-  const [first = cues] = cues.split(/(?<=[.!?])\s+/);
-  return first;
+  await ctx.reply(lines.join('\n'), {
+    parse_mode: 'HTML',
+    reply_markup: new InlineKeyboard().text(texts.mini.doneButton, `m:done:${code}`),
+  });
 }
 
 async function finishBlock(ctx: Context, deps: BotDeps, code: string): Promise<void> {

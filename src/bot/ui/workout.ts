@@ -139,6 +139,10 @@ export function renderCard(steps: WorkoutStep[], stepIndex: number, setIndex: nu
     lines.push('', `⚠️ Не надо: ${escapeHtml(lowerFirst(item.exercise.mistakes))}`);
   }
 
+  // Расшифровка шкалы: кнопки подписей не имеют, а от ответа зависит, усложнится ли
+  // упражнение в следующий раз (docs/05).
+  lines.push('', 'Как прошло? 😮‍💨 тяжело · 👌 нормально · 😴 легко');
+
   return lines.join('\n');
 }
 
@@ -151,12 +155,15 @@ function taskLines(step: WorkoutStep): string[] {
   const lines: string[] = [];
   const side = item.unilateral ? ' на каждую сторону' : '';
 
-  if (item.unit === 'seconds') {
-    lines.push(
-      `⏱ Держать ${item.target} ${plural(item.target, 'секунду', 'секунды', 'секунд')}${side}`,
-    );
-  } else {
-    lines.push(`🔁 ${amount(item)}${side}`);
+  // Количество подходов стоит в той же строке, что и объём: «30 секунд» без «сколько раз»
+  // не задание, а число. Секунды удержания при этом остаются секундами, а не повторами.
+  lines.push(
+    step.sets > 1
+      ? `🔁 ${step.sets} ${plural(step.sets, 'подход', 'подхода', 'подходов')} по ${amount(item)}${side}`
+      : `🔁 Один подход: ${amount(item)}${side}`,
+  );
+  // Оценка времени нужна там, где её не видно из задания: у удержания она и есть задание.
+  if (item.unit !== 'seconds') {
     lines.push(`⏱ Примерно ${seconds(secondsPerSet(step))} на подход`);
   }
 
@@ -166,7 +173,7 @@ function taskLines(step: WorkoutStep): string[] {
   }
   // У шага в один подход строки про отдых нет: отдыхать не между чем.
   if (step.sets > 1 && item.restSec > 0) {
-    lines.push(`😮‍💨 Отдых между подходами ${seconds(item.restSec)}`);
+    lines.push(`⏸ Отдых между подходами ${seconds(item.restSec)}`);
   }
   return lines;
 }
@@ -178,7 +185,7 @@ function amount(item: PlannedItem): string {
     case 'steps':
       return `${item.target} ${plural(item.target, 'шаг', 'шага', 'шагов')}`;
     case 'seconds':
-      return `${item.target} ${plural(item.target, 'секунда', 'секунды', 'секунд')}`;
+      return `${item.target} ${plural(item.target, 'секунду', 'секунды', 'секунд')} удержания`;
   }
 }
 

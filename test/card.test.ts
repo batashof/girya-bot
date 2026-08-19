@@ -56,7 +56,7 @@ describe('карточка упражнения', () => {
 
     expect(card).toContain('<b>Тяга одной рукой в наклоне</b>');
     expect(card).toContain('Подход 2 из 3');
-    expect(card).toContain('12 повторов на каждую сторону');
+    expect(card).toContain('3 подхода по 12 повторов на каждую сторону');
     expect(card).toContain('Гиря 5 кг');
     expect(card).toMatch(/Осталось ~\d+ мин/);
   });
@@ -64,9 +64,22 @@ describe('карточка упражнения', () => {
   it('у удержания показывает секунды, а не повторы', () => {
     const steps = toSteps(workoutFor(1));
     const hold = steps.find((step) => step.item.unit === 'seconds')!;
+    const card = renderCard(steps, hold.index, 1);
 
-    expect(renderCard(steps, hold.index, 1)).toContain('Держать');
-    expect(renderCard(steps, hold.index, 1)).not.toContain('повтор');
+    expect(card).toContain('секунд удержания');
+    expect(card).not.toContain('повтор');
+  });
+
+  it('всегда называет число подходов рядом с объёмом', () => {
+    // Иначе «30 секунд» — это число, а не задание: непонятно, сколько раз.
+    for (const card of allCards()) {
+      expect(card.text, card.code).toMatch(/🔁 (Один подход:|\d+ подход)/);
+    }
+  });
+
+  it('расшифровывает шкалу оценки: у кнопок нет подписей', () => {
+    const steps = toSteps(workoutFor(1));
+    expect(renderCard(steps, 0, 1)).toContain('😮‍💨 тяжело · 👌 нормально · 😴 легко');
   });
 
   it('разбивает технику на пронумерованные шаги', () => {

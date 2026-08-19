@@ -1,7 +1,7 @@
 import { Bot, type Context } from 'grammy';
 import { registerHelp } from './commands/help';
 import { registerPing } from './commands/ping';
-import { registerHowto } from './commands/howto';
+import { registerGif } from './commands/gif';
 import { registerStats } from './commands/stats';
 import { registerToday } from './commands/today';
 import { registerOnboarding } from './flows/onboarding';
@@ -36,7 +36,7 @@ export function createBot(options: BotOptions): Bot {
   registerHelp(bot);
   registerToday(bot, deps);
   registerStats(bot, deps);
-  registerHowto(bot, deps);
+  registerGif(bot, deps);
   registerWorkout(bot, deps);
   registerNeck(bot, deps);
   registerMini(bot, deps);
