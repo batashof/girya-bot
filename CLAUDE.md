@@ -41,7 +41,7 @@ pnpm dev        # локальный воркер + dev-бот в polling
 pnpm test       # Vitest по domain/
 pnpm typecheck
 pnpm demos:build # перерисовать схемы движения (нужен Pillow)
-pnpm deploy     # wrangler deploy (обычно не нужно — деплоит CI из main)
+pnpm deploy     # wrangler deploy руками: CI деплоит из main, только если в секретах есть CLOUDFLARE_API_TOKEN
 ```
 
 ## Чего не делать
