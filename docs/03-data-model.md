@@ -20,7 +20,7 @@ CREATE TABLE users (
   level            TEXT NOT NULL DEFAULT 'base',   -- base | strong (стартовый уровень лестниц)
   has_pullup_bar   INTEGER NOT NULL DEFAULT 0,
   has_band         INTEGER NOT NULL DEFAULT 0,
-  has_backpack     INTEGER NOT NULL DEFAULT 0,     -- как и турник с резиной: по умолчанию нет
+  has_backpack     INTEGER NOT NULL DEFAULT 1,     -- DEFAULT из 0001; фактическое стартовое значение — 0, см. src/data/starter.ts
   block_start      TEXT NOT NULL,                  -- дата начала 4-недельного блока
   paused_from      TEXT,                           -- пауза — диапазон, а не дедлайн
   paused_until     TEXT,

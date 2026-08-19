@@ -1,5 +1,5 @@
 import { all, bool, one, run } from '../db';
-import { STARTER_KETTLEBELLS } from '../starter';
+import { STARTER_GEAR, STARTER_KETTLEBELLS } from '../starter';
 import type { Kettlebell, User } from '../../domain/types';
 
 interface UserRow {
@@ -52,7 +52,8 @@ export async function getUser(db: D1Database, telegramId: number): Promise<User 
 
 /**
  * Создаёт пользователя со стартовой конфигурацией, если его ещё нет.
- * Умолчания берутся из схемы — здесь задаётся только то, чего SQLite сам не знает.
+ * Умолчания берутся из схемы — здесь задаётся только то, чего SQLite сам не знает:
+ * гири и необязательный инвентарь (`starter.ts`).
  */
 export async function ensureUser(db: D1Database, telegramId: number, today: string): Promise<User> {
   const existing = await getUser(db, telegramId);
@@ -60,7 +61,16 @@ export async function ensureUser(db: D1Database, telegramId: number, today: stri
     return existing;
   }
 
-  await run(db, `INSERT INTO users (telegram_id, block_start) VALUES (?, ?)`, telegramId, today);
+  await run(
+    db,
+    `INSERT INTO users (telegram_id, block_start, has_pullup_bar, has_band, has_backpack)
+     VALUES (?, ?, ?, ?, ?)`,
+    telegramId,
+    today,
+    STARTER_GEAR.has_pullup_bar,
+    STARTER_GEAR.has_band,
+    STARTER_GEAR.has_backpack,
+  );
   await setKettlebells(db, telegramId, [...STARTER_KETTLEBELLS]);
 
   const created = await getUser(db, telegramId);

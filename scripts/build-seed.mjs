@@ -1,9 +1,14 @@
 /**
  * Собирает SQL-сид справочников из data/*.seed.json.
  *
- * Это не миграция, а полная пересборка контента: файл начинается с DELETE и применяется
- * повторно сколько угодно раз. В migrations/ лежит только схема — иначе сид пришлось бы
- * нумеровать между ALTER-ами и он ломался бы на чистой базе.
+ * Это не миграция, а пересборка контента: применяется повторно сколько угодно раз.
+ * В migrations/ лежит только схема — иначе сид пришлось бы нумеровать между ALTER-ами
+ * и он ломался бы на чистой базе.
+ *
+ * Справочники, на которые ссылаются логи (`exercises`, `templates`), обновляются через
+ * UPSERT, а не через DELETE + INSERT: как только в базе появилась история тренировок,
+ * удаление строки упражнения роняет весь сид по FOREIGN KEY. Пропавшее из JSON удаляется
+ * в конце файла — но только если на него никто не ссылается.
  *
  * Новое упражнение: строка в docs/06-exercise-library.md → запись в JSON → `pnpm seed:build`.
  */
@@ -20,11 +25,9 @@ const lines = [
   '-- Сгенерировано `pnpm seed:build` из data/*.seed.json. Руками не править.',
   '-- Применяется отдельно от миграций: `pnpm seed:apply` (локально) или `pnpm seed:apply:remote`.',
   '',
-  '-- Справочники пересобираются целиком: это статический контент, а не пользовательские данные.',
+  '-- На эти две таблицы никто не ссылается — их проще пересобрать целиком.',
   'DELETE FROM template_items;',
-  'DELETE FROM templates;',
   'DELETE FROM chain_steps;',
-  'DELETE FROM exercises;',
   '',
 ];
 
@@ -38,8 +41,25 @@ for (const exercise of exercises) {
   if ((exercise.chain === null) !== (exercise.chain_level === null)) {
     fail(`${exercise.code}: chain и chain_level задаются вместе`);
   }
+  const EXERCISE_COLUMNS = [
+    'code',
+    'name',
+    'group_code',
+    'pattern',
+    'equipment',
+    'chain',
+    'chain_level',
+    'unit',
+    'unilateral',
+    'cues',
+    'mistakes',
+    'video_url',
+    'neck_safe',
+    'swap_group',
+  ];
+
   lines.push(
-    `INSERT INTO exercises (code, name, group_code, pattern, equipment, chain, chain_level, unit, unilateral, cues, mistakes, video_url, neck_safe, swap_group) VALUES (${[
+    `INSERT INTO exercises (${EXERCISE_COLUMNS.join(', ')}) VALUES (${[
       sql(exercise.code),
       sql(exercise.name),
       sql(exercise.group_code),
@@ -54,7 +74,7 @@ for (const exercise of exercises) {
       sql(exercise.video_url ?? null),
       num(exercise.neck_safe ?? 1),
       sql(exercise.swap_group),
-    ].join(', ')});`,
+    ].join(', ')})\n  ${onConflict('code', EXERCISE_COLUMNS)};`,
   );
 }
 
@@ -84,6 +104,16 @@ for (const [chain, steps] of Object.entries(chains)) {
   });
 }
 
+const TEMPLATE_COLUMNS = [
+  'code',
+  'title',
+  'weekday',
+  'intensity',
+  'est_minutes',
+  'optional',
+  'kind',
+];
+
 lines.push('', '-- Шаблоны дней (docs/05-training-program.md)');
 const weekdays = new Set();
 for (const template of templates.templates) {
@@ -93,7 +123,7 @@ for (const template of templates.templates) {
   weekdays.add(template.weekday);
 
   lines.push(
-    `INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES (${[
+    `INSERT INTO templates (${TEMPLATE_COLUMNS.join(', ')}) VALUES (${[
       sql(template.code),
       sql(template.title),
       num(template.weekday),
@@ -101,7 +131,7 @@ for (const template of templates.templates) {
       num(template.est_minutes),
       num(template.optional ?? 0),
       sql('day'),
-    ].join(', ')});`,
+    ].join(', ')})\n  ${onConflict('code', TEMPLATE_COLUMNS)};`,
   );
 
   const items = expandItems(template.items, templates.protocols, template.code);
@@ -135,7 +165,7 @@ if (weekdays.size !== 7) {
 lines.push('', '-- Микро-блоки /mini (docs/05-training-program.md, ADR-013)');
 for (const block of templates.mini) {
   lines.push(
-    `INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES (${[
+    `INSERT INTO templates (${TEMPLATE_COLUMNS.join(', ')}) VALUES (${[
       sql(block.code),
       sql(block.title),
       num(0),
@@ -143,7 +173,7 @@ for (const block of templates.mini) {
       num(block.est_minutes),
       num(1),
       sql('mini'),
-    ].join(', ')});`,
+    ].join(', ')})\n  ${onConflict('code', TEMPLATE_COLUMNS)};`,
   );
   block.items.forEach((item, index) => {
     checkExercise(item.exercise, `микро-блок ${block.code}, пункт ${index + 1}`);
@@ -164,6 +194,27 @@ for (const block of templates.mini) {
     );
   });
 }
+
+// Что пропало из JSON — уходит из базы, но только если на него нет ни одной ссылки
+// из логов. Иначе строка остаётся мусором в справочнике: это дешевле, чем упавший сид.
+const templateCodes = [
+  ...templates.templates.map((t) => t.code),
+  ...templates.mini.map((b) => b.code),
+];
+lines.push(
+  '',
+  '-- Убираем то, чего больше нет в JSON. Строки, на которые ссылаются логи, остаются.',
+  `DELETE FROM templates
+ WHERE code NOT IN (${templateCodes.map(sql).join(', ')})
+   AND code NOT IN (SELECT template_code FROM sessions);`,
+  `DELETE FROM exercises
+ WHERE code NOT IN (${[...knownCodes].map(sql).join(', ')})
+   AND code NOT IN (SELECT exercise_code FROM progression)
+   AND code NOT IN (SELECT exercise_code FROM session_sets)
+   AND code NOT IN (SELECT exercise_code FROM exercise_media)
+   AND code NOT IN (SELECT from_code FROM swaps)
+   AND code NOT IN (SELECT to_code FROM swaps);`,
+);
 
 writeFileSync(OUTPUT, `${lines.join('\n')}\n`);
 console.log(
@@ -217,4 +268,13 @@ function num(value) {
 function fail(message) {
   console.error(`Сид не собран: ${message}`);
   process.exit(1);
+}
+
+/** `ON CONFLICT … DO UPDATE` по всем колонкам, кроме ключа. */
+function onConflict(key, columns) {
+  const assignments = columns
+    .filter((column) => column !== key)
+    .map((column) => `${column} = excluded.${column}`)
+    .join(', ');
+  return `ON CONFLICT (${key}) DO UPDATE SET ${assignments}`;
 }

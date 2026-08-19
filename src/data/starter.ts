@@ -6,3 +6,16 @@
  * Остальные умолчания (пояс, время, 15 минут) живут в DEFAULT-ах схемы, см. migrations/0001_init.sql.
  */
 export const STARTER_KETTLEBELLS = [{ weight: 5, count: 2 }] as const;
+
+/**
+ * Необязательный инвентарь: по умолчанию его нет.
+ *
+ * Живёт здесь, а не в DEFAULT-ах схемы: в SQLite умолчание колонки не меняется,
+ * а пересобирать `users` с живыми внешними ключами ради него — плохая сделка
+ * (см. migrations/0005_no_extra_gear.sql). Спрашивается в онбординге, правится в `/settings`.
+ */
+export const STARTER_GEAR = {
+  has_pullup_bar: 0,
+  has_band: 0,
+  has_backpack: 0,
+} as const;
