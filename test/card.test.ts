@@ -77,6 +77,14 @@ describe('карточка упражнения', () => {
     }
   });
 
+  it('раздаёт объём по сторонам, когда подход всего один', () => {
+    // «Один подход: 30 секунд на каждую сторону» читается как «всего 30 секунд».
+    const steps = toSteps(workoutFor(1));
+    const single = steps.find((step) => step.sets === 1 && step.item.unilateral)!;
+
+    expect(renderCard(steps, single.index, 1)).toContain('Один подход: по ');
+  });
+
   it('расшифровывает шкалу оценки: у кнопок нет подписей', () => {
     const steps = toSteps(workoutFor(1));
     expect(renderCard(steps, 0, 1)).toContain('😮‍💨 тяжело · 👌 нормально · 😴 легко');
