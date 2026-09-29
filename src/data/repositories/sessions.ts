@@ -278,6 +278,32 @@ export async function recordMiniSession(
   }
 }
 
+/**
+ * Тренировка по теме (ADR-016): своя сессия с `kind = 'theme'`, сколько угодно раз в день.
+ * Заводится при выборе первого упражнения, а не при открытии темы: заглянуть в список
+ * и уйти — не тренировка, пустых сессий в логах быть не должно.
+ */
+export async function startThemeSession(
+  db: D1Database,
+  telegramId: number,
+  session: { localDate: string; templateCode: string; weekInBlock: number },
+): Promise<number> {
+  const row = await one<{ id: number }>(
+    db,
+    `INSERT INTO sessions (user_id, local_date, template_code, kind, week_in_block, status, started_at)
+          VALUES (?, ?, ?, 'theme', ?, 'in_progress', datetime('now'))
+       RETURNING id`,
+    telegramId,
+    session.localDate,
+    session.templateCode,
+    session.weekInBlock,
+  );
+  if (row === null) {
+    throw new Error('Сессия по теме не создалась');
+  }
+  return row.id;
+}
+
 export async function countMiniToday(
   db: D1Database,
   telegramId: number,

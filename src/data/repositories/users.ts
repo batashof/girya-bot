@@ -1,6 +1,6 @@
 import { all, bool, one, run } from '../db';
 import { STARTER_GEAR, STARTER_KETTLEBELLS } from '../starter';
-import type { Kettlebell, User } from '../../domain/types';
+import type { Kettlebell, TrainingMode, User } from '../../domain/types';
 
 interface UserRow {
   telegram_id: number;
@@ -20,6 +20,7 @@ interface UserRow {
   paused_from: string | null;
   paused_until: string | null;
   snooze_until: string | null;
+  training_mode: string;
 }
 
 export async function getUser(db: D1Database, telegramId: number): Promise<User | null> {
@@ -30,6 +31,7 @@ export async function getUser(db: D1Database, telegramId: number): Promise<User 
   const kettlebells = await getKettlebells(db, telegramId);
   return {
     telegramId: row.telegram_id,
+    trainingMode: toTrainingMode(row.training_mode),
     timezone: row.timezone,
     remindAt: row.remind_at,
     eveningPingAt: row.evening_ping_at,
@@ -98,6 +100,7 @@ export interface UserPatch {
   paused_from?: string | null;
   paused_until?: string | null;
   snooze_until?: string | null;
+  training_mode?: TrainingMode;
 }
 
 export async function updateUser(
@@ -150,4 +153,9 @@ export async function setKettlebells(
     ),
   ];
   await db.batch(statements);
+}
+
+/** Незнакомое значение в базе — это `daily`: старое поведение безопаснее молчания. */
+function toTrainingMode(value: string): TrainingMode {
+  return value === 'on_demand' ? 'on_demand' : 'daily';
 }

@@ -43,6 +43,7 @@ async function notifyUser(db: D1Database, api: Api, user: User, now: Date): Prom
     remindAt: user.remindAt,
     eveningPingAt: user.eveningPingAt,
     miniReminders: user.miniReminders,
+    dailyReminders: user.trainingMode === 'daily',
     pausedUntil: user.pausedUntil,
     snoozeUntil: user.snoozeUntil,
     alreadySent: await sentToday(db, user.telegramId, moment.date),

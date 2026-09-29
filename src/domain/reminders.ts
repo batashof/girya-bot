@@ -13,6 +13,12 @@ export interface ReminderInput {
   remindAt: LocalTime;
   eveningPingAt: LocalTime | null;
   miniReminders: boolean;
+  /**
+   * Утреннее напоминание и вечерний пинг — только в режиме `daily`. В режиме «по запросу»
+   * тренировка начинается, когда захочется, и бот про программу дня не напоминает
+   * (ADR-016). Недельный отчёт и микро-блоки от режима не зависят.
+   */
+  dailyReminders: boolean;
   /** Пауза по болезни или поездке: молчим совсем (docs/04). */
   pausedUntil: string | null;
   /** Момент, до которого утреннее напоминание отложено кнопкой «Через час», UTC ISO. */
@@ -46,11 +52,16 @@ export function dueReminders(input: ReminderInput): ReminderKind[] {
   const nowMinutes = minutesOfDay(input.moment.time);
   const due: ReminderKind[] = [];
 
-  if (!input.alreadySent.has('morning') && isMorningDue(input, nowMinutes)) {
+  if (
+    input.dailyReminders &&
+    !input.alreadySent.has('morning') &&
+    isMorningDue(input, nowMinutes)
+  ) {
     due.push('morning');
   }
 
   if (
+    input.dailyReminders &&
     input.eveningPingAt !== null &&
     !input.alreadySent.has('evening') &&
     input.mainStatus !== 'done' &&

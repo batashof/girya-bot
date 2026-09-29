@@ -8,6 +8,7 @@ function input(overrides: Partial<ReminderInput> = {}): ReminderInput {
     remindAt: '07:30',
     eveningPingAt: '20:00',
     miniReminders: false,
+    dailyReminders: true,
     pausedUntil: null,
     snoozeUntil: null,
     alreadySent: new Set<ReminderKind>(),
@@ -42,6 +43,24 @@ describe('dueReminders', () => {
   it('молчит на паузе', () => {
     // Болезнь или поездка: /pause выключает бота, а не откладывает его (docs/04).
     expect(dueReminders(input({ pausedUntil: '2026-08-20' }))).toEqual([]);
+  });
+
+  it('в режиме «по запросу» не зовёт на программу дня ни утром, ни вечером', () => {
+    // ADR-016: тренировка начинается, когда захочется, а не по будильнику.
+    expect(dueReminders(input({ dailyReminders: false }))).toEqual([]);
+    const evening = { date: '2026-08-12', time: '20:00', weekday: 3 as Weekday };
+    expect(dueReminders(input({ dailyReminders: false, moment: evening }))).toEqual([]);
+  });
+
+  it('в режиме «по запросу» недельный отчёт и микро-блоки остаются', () => {
+    const sunday = { date: '2026-08-16', time: '20:00', weekday: 7 as Weekday };
+    expect(dueReminders(input({ dailyReminders: false, moment: sunday }))).toEqual([
+      'weekly_report',
+    ]);
+    const midday = { date: '2026-08-12', time: '12:00', weekday: 3 as Weekday };
+    expect(
+      dueReminders(input({ dailyReminders: false, miniReminders: true, moment: midday })),
+    ).toEqual(['mini_midday']);
   });
 
   it('снова напоминает после паузы', () => {

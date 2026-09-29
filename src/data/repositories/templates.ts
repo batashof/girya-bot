@@ -1,5 +1,5 @@
 import { all, bool, one } from '../db';
-import type { Chain, DayTemplate, TemplateItem } from '../../domain/types';
+import type { Chain, DayTemplate, TemplateItem, Theme } from '../../domain/types';
 
 interface TemplateRow {
   code: string;
@@ -54,6 +54,35 @@ export async function loadMiniBlocks(db: D1Database): Promise<{ code: string; ti
   );
 }
 
+/** Темы тренировки по запросу в порядке меню (ADR-016). */
+export async function loadThemes(db: D1Database): Promise<Theme[]> {
+  const rows = await all<{ code: string; title: string; group_code: string | null }>(
+    db,
+    `SELECT code, title, group_code FROM templates WHERE kind = 'theme' ORDER BY code`,
+  );
+  return rows.flatMap((row) =>
+    row.group_code === null
+      ? []
+      : [{ code: row.code, title: row.title, groupCode: row.group_code }],
+  );
+}
+
+/**
+ * Все пункты шаблонов — откуда тема берёт подходы и отдых для упражнения. Сначала дни
+ * недели, потом микро-блоки: у дня доза полноценная, у микро-блока урезанная.
+ */
+export async function loadDoseItems(db: D1Database): Promise<TemplateItem[]> {
+  const rows = await all<TemplateItemRow>(
+    db,
+    `SELECT i.position, i.exercise_code, i.block, i.follow_chain, i.sets,
+            i.target_min, i.target_max, i.rest_sec, i.load_hint, i.optional
+       FROM template_items i
+       JOIN templates t ON t.code = i.template_code
+      ORDER BY CASE t.kind WHEN 'day' THEN 0 ELSE 1 END, t.weekday, t.code, i.position`,
+  );
+  return rows.map(toItem);
+}
+
 async function withItems(db: D1Database, template: TemplateRow): Promise<DayTemplate> {
   const items = await all<TemplateItemRow>(
     db,
@@ -72,17 +101,21 @@ async function withItems(db: D1Database, template: TemplateRow): Promise<DayTemp
     intensity: template.intensity as DayTemplate['intensity'],
     estMinutes: template.est_minutes,
     optional: bool(template.optional),
-    items: items.map((row): TemplateItem => ({
-      position: row.position,
-      exerciseCode: row.exercise_code,
-      block: row.block as TemplateItem['block'],
-      followChain: row.follow_chain as Chain | null,
-      sets: row.sets,
-      targetMin: row.target_min,
-      targetMax: row.target_max,
-      restSec: row.rest_sec,
-      loadHint: row.load_hint as TemplateItem['loadHint'],
-      optional: bool(row.optional),
-    })),
+    items: items.map(toItem),
+  };
+}
+
+function toItem(row: TemplateItemRow): TemplateItem {
+  return {
+    position: row.position,
+    exerciseCode: row.exercise_code,
+    block: row.block as TemplateItem['block'],
+    followChain: row.follow_chain as Chain | null,
+    sets: row.sets,
+    targetMin: row.target_min,
+    targetMax: row.target_max,
+    restSec: row.rest_sec,
+    loadHint: row.load_hint as TemplateItem['loadHint'],
+    optional: bool(row.optional),
   };
 }

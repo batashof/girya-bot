@@ -1,3 +1,6 @@
+import type { TrainingMode } from '../../domain/types';
+import { plural } from './plural';
+
 /**
  * Все тексты бота. Русский, без i18n (ADR-009).
  * Тон: короткие фразы, без мотивационного шума, эмодзи — маркеры структуры (docs/04-bot-ux.md).
@@ -12,6 +15,7 @@ export const texts = {
   help: [
     'Girya — тренировки дома, 15 минут утром.',
     '',
+    '/train — выбрать тренировку: программа дня или тема',
     '/today — тренировка на сегодня',
     '/go — пройти её пошагово',
     '/swap — заменить упражнение',
@@ -162,6 +166,63 @@ export const texts = {
     },
   },
 
+  train: {
+    menu(mode: TrainingMode): string {
+      return [
+        'Какую тренировку?',
+        '',
+        '📅 Программа дня — план недели, лестницы и серия.',
+        '🎯 По теме — выбираешь группу: шея, лопатки, ноги… и любые упражнения из неё.',
+        '',
+        mode === 'daily'
+          ? 'Режим: ежедневно — утром напомню о программе дня.'
+          : 'Режим: по запросу — о программе дня не напоминаю, тренировка когда захочешь.',
+      ].join('\n');
+    },
+
+    modeChanged(mode: TrainingMode): string {
+      return mode === 'daily'
+        ? 'Режим: ежедневно. Утром напомню о программе дня, вечером — если не сделано.'
+        : 'Режим: по запросу. Напоминаний о программе дня не будет — /train, когда захочешь.';
+    },
+  },
+
+  themes: {
+    menu: 'Какая тема? Упражнения внутри — любые, в любом порядке.',
+
+    empty: 'В этой теме сейчас нечего делать: все упражнения требуют инвентаря, которого нет.',
+
+    noSession: 'Тренировка по теме не идёт. Выбрать тему — /train.',
+
+    list(title: string, options: { hiddenForNeck: number; anyDone: boolean }): string {
+      const lines = [`<b>${title}</b>`, 'Выбери упражнение.'];
+      if (options.anyDone) {
+        lines.push('✅ — уже сделано в этой тренировке.');
+      }
+      if (options.hiddenForNeck > 0) {
+        lines.push(
+          '',
+          `⚠️ Шея сегодня на 2 и выше: спрятал ${options.hiddenForNeck} упр., которые её грузят.`,
+        );
+      }
+      return lines.join('\n');
+    },
+
+    cardHeader(title: string, position: number): string {
+      return `${title} · упражнение ${position}`;
+    },
+
+    finished(title: string, exercises: number, minutes: number): string {
+      if (exercises === 0) {
+        return `${title}: ни одного упражнения не сделано — в логах записан только факт попытки.`;
+      }
+      return [
+        `✅ <b>${title}: ${exercises} ${plural(exercises, 'упражнение', 'упражнения', 'упражнений')} за ${Math.max(1, minutes)} мин.</b>`,
+        'На лестницы и серию тренировка по теме не влияет — она для себя, а не по плану.',
+      ].join('\n');
+    },
+  },
+
   settings: {
     menu: '⚙️ Настройки',
 
@@ -227,6 +288,17 @@ export const buttons = {
   skipToday: '⏭ Пропустить сегодня',
   shortVersion: '▶️ Сокращённая версия',
   miniNow: '🦴 Микро-блок',
+
+  trainDay: '📅 Программа дня',
+  trainTheme: '🎯 По теме',
+  themeBack: '⬅️ Темы',
+  themeToList: '⬅️ К списку',
+  themeFinish: '🏁 Закончить',
+  themeMore: '🎯 Ещё тема',
+
+  mode(mode: TrainingMode): string {
+    return `🗓 Режим: ${mode === 'daily' ? 'ежедневно' : 'по запросу'}`;
+  },
 
   neck0: '0 ок',
   neck1: '1 тянет',
