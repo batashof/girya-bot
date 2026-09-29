@@ -227,7 +227,8 @@ function isAllowed(exercise: Exercise, adaptation: Adaptation): boolean {
   return !adaptation.dropNeckUnsafe || exercise.neckSafe;
 }
 
-function isAvailable(exercise: Exercise | undefined, user: UserProfile): boolean {
+/** Есть ли у пользователя всё, что нужно упражнению. Стена, пол и стул есть всегда. */
+export function isAvailable(exercise: Exercise | undefined, user: UserProfile): boolean {
   if (exercise === undefined) {
     return false;
   }
@@ -251,7 +252,7 @@ function hasEquipment(equipment: Equipment, user: UserProfile): boolean {
 }
 
 /** Вес берётся из инвентаря пользователя, а не из констант в коде. */
-function resolveWeight(hint: LoadHint | null, user: UserProfile): number | null {
+export function resolveWeight(hint: LoadHint | null, user: UserProfile): number | null {
   if (hint === null || hint === 'bodyweight' || hint === 'backpack') {
     return null;
   }
@@ -347,6 +348,6 @@ function perSetSeconds(target: number, unit: Unit): number {
   }
 }
 
-function clamp(value: number, min: number, max: number): number {
+export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }

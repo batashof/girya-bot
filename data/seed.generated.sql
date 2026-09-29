@@ -164,8 +164,8 @@ INSERT INTO chain_steps (chain, level, exercise_code, variant, tempo, load_hint,
 INSERT INTO chain_steps (chain, level, exercise_code, variant, tempo, load_hint, requires, target_min, target_max) VALUES ('core', 5, 'CR2', 'с подъёмом ноги', 'normal', 'bodyweight', NULL, 30, 45);
 
 -- Шаблоны дней (docs/05-training-program.md)
-INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES ('W-A', 'Спина и осанка', 1, 'medium', 15, 0, 'day')
-  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('W-A', 'Спина и осанка', 1, 'medium', 15, 0, 'day', NULL)
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-A', 1, 'NK1', 'neck', NULL, 1, 10, 10, 15, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-A', 2, 'NK2', 'neck', NULL, 1, 10, 10, 5, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-A', 3, 'NK3', 'neck', NULL, 1, 10, 10, 5, NULL, 0);
@@ -179,8 +179,8 @@ INSERT INTO template_items (template_code, position, exercise_code, block, follo
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-A', 11, 'SC3', 'posture', NULL, 2, 10, 10, 20, 'bodyweight', 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-A', 12, 'CR3', 'support', NULL, 3, 40, 40, 45, 'kb_main', 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-A', 13, 'MB4', 'mobility', NULL, 2, 30, 30, 0, NULL, 0);
-INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES ('W-B', 'Ноги и таз', 2, 'medium', 15, 0, 'day')
-  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('W-B', 'Ноги и таз', 2, 'medium', 15, 0, 'day', NULL)
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-B', 1, 'NK1', 'neck', NULL, 1, 10, 10, 15, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-B', 2, 'NK2', 'neck', NULL, 1, 10, 10, 5, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-B', 3, 'NK3', 'neck', NULL, 1, 10, 10, 5, NULL, 0);
@@ -192,8 +192,8 @@ INSERT INTO template_items (template_code, position, exercise_code, block, follo
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-B', 9, 'LG2', 'support', NULL, 3, 8, 12, 60, 'bodyweight', 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-B', 10, 'PC8', 'posture', NULL, 3, 10, 15, 45, 'bodyweight', 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-B', 11, 'MB7', 'mobility', NULL, 2, 30, 30, 0, NULL, 0);
-INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES ('W-C', 'Шея и грудной отдел', 3, 'light', 12, 0, 'day')
-  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('W-C', 'Шея и грудной отдел', 3, 'light', 12, 0, 'day', NULL)
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-C', 1, 'NK1', 'neck', NULL, 1, 10, 10, 15, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-C', 2, 'NK2', 'neck', NULL, 2, 10, 10, 5, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-C', 3, 'NK3', 'neck', NULL, 2, 10, 10, 5, NULL, 0);
@@ -207,8 +207,8 @@ INSERT INTO template_items (template_code, position, exercise_code, block, follo
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-C', 11, 'SC4', 'posture', NULL, 3, 10, 10, 30, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-C', 12, 'MB1', 'mobility', NULL, 1, 10, 10, 0, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-C', 13, 'MB2', 'mobility', NULL, 2, 8, 8, 0, NULL, 0);
-INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES ('W-D', 'Верх тела: жим и ротаторы', 4, 'medium', 15, 0, 'day')
-  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('W-D', 'Верх тела: жим и ротаторы', 4, 'medium', 15, 0, 'day', NULL)
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-D', 1, 'NK1', 'neck', NULL, 1, 10, 10, 15, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-D', 2, 'NK2', 'neck', NULL, 1, 10, 10, 5, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-D', 3, 'NK3', 'neck', NULL, 1, 10, 10, 5, NULL, 0);
@@ -220,8 +220,8 @@ INSERT INTO template_items (template_code, position, exercise_code, block, follo
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-D', 9, 'PR5', 'posture', NULL, 3, 12, 15, 45, 'kb_main', 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-D', 10, 'SC9', 'support', NULL, 3, 12, 15, 45, 'kb_main', 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-D', 11, 'MB6', 'mobility', NULL, 2, 8, 8, 0, NULL, 0);
-INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES ('W-E', 'Задняя цепь', 5, 'heavy', 15, 0, 'day')
-  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('W-E', 'Задняя цепь', 5, 'heavy', 15, 0, 'day', NULL)
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-E', 1, 'NK1', 'neck', NULL, 1, 10, 10, 15, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-E', 2, 'NK2', 'neck', NULL, 1, 10, 10, 5, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-E', 3, 'NK3', 'neck', NULL, 1, 10, 10, 5, NULL, 0);
@@ -233,8 +233,8 @@ INSERT INTO template_items (template_code, position, exercise_code, block, follo
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-E', 9, 'PC3', 'support', NULL, 4, 20, 25, 60, 'kb_main', 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-E', 10, 'PC6', 'posture', NULL, 3, 10, 12, 45, 'bodyweight', 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-E', 11, 'MB3', 'mobility', NULL, 1, 10, 10, 0, NULL, 0);
-INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES ('W-F', 'Длинный день', 6, 'heavy', 25, 1, 'day')
-  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('W-F', 'Длинный день', 6, 'heavy', 25, 1, 'day', NULL)
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-F', 1, 'NK1', 'neck', NULL, 1, 10, 10, 15, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-F', 2, 'NK2', 'neck', NULL, 1, 10, 10, 5, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-F', 3, 'NK3', 'neck', NULL, 1, 10, 10, 5, NULL, 0);
@@ -251,8 +251,8 @@ INSERT INTO template_items (template_code, position, exercise_code, block, follo
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-F', 14, 'MB5', 'mobility', NULL, 1, 5, 5, 0, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-F', 15, 'NK6', 'mobility', NULL, 1, 30, 30, 0, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-F', 16, 'NK7', 'mobility', NULL, 1, 30, 30, 0, NULL, 0);
-INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES ('W-G', 'Восстановление', 7, 'recovery', 10, 0, 'day')
-  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('W-G', 'Восстановление', 7, 'recovery', 10, 0, 'day', NULL)
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-G', 1, 'NK1', 'neck', NULL, 1, 10, 10, 15, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-G', 2, 'NK2', 'neck', NULL, 2, 10, 10, 5, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-G', 3, 'NK3', 'neck', NULL, 2, 10, 10, 5, NULL, 0);
@@ -268,23 +268,41 @@ INSERT INTO template_items (template_code, position, exercise_code, block, follo
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('W-G', 13, 'MB9', 'walk', NULL, 1, 1800, 1800, 0, NULL, 0);
 
 -- Микро-блоки /mini (docs/05-training-program.md, ADR-013)
-INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES ('M-NECK', 'Шея', 0, 'light', 3, 1, 'mini')
-  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('M-NECK', 'Шея', 0, 'light', 3, 1, 'mini', NULL)
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('M-NECK', 1, 'NK1', 'neck', NULL, 1, 10, 10, 10, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('M-NECK', 2, 'NK6', 'neck', NULL, 1, 30, 30, 0, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('M-NECK', 3, 'NK7', 'neck', NULL, 1, 30, 30, 0, NULL, 0);
-INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES ('M-POSTURE', 'Осанка', 0, 'light', 3, 1, 'mini')
-  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('M-POSTURE', 'Осанка', 0, 'light', 3, 1, 'mini', NULL)
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('M-POSTURE', 1, 'SC4', 'posture', NULL, 1, 10, 10, 10, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('M-POSTURE', 2, 'MB4', 'mobility', NULL, 1, 30, 30, 0, NULL, 0);
-INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind) VALUES ('M-HIPS', 'Таз', 0, 'light', 3, 1, 'mini')
-  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('M-HIPS', 'Таз', 0, 'light', 3, 1, 'mini', NULL)
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('M-HIPS', 1, 'LG5', 'support', NULL, 1, 10, 10, 10, NULL, 0);
 INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES ('M-HIPS', 2, 'MB7', 'mobility', NULL, 1, 30, 30, 0, NULL, 0);
 
+-- Темы тренировки по запросу (ADR-016): без пунктов, состав — по group_code
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('T1-NECK', '🦴 Шея', 0, 'light', 0, 1, 'theme', 'neck')
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('T2-SCAP', '🎯 Лопатки и осанка', 0, 'light', 0, 1, 'theme', 'scap')
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('T3-ROW', '🔙 Спина: тяги', 0, 'light', 0, 1, 'theme', 'row')
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('T4-POST', '🍑 Задняя цепь', 0, 'light', 0, 1, 'theme', 'posterior')
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('T5-PRESS', '💪 Жимы и плечи', 0, 'light', 0, 1, 'theme', 'press')
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('T6-LEGS', '🦵 Ноги', 0, 'light', 0, 1, 'theme', 'legs')
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('T7-CORE', '🧱 Корпус', 0, 'light', 0, 1, 'theme', 'core')
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
+INSERT INTO templates (code, title, weekday, intensity, est_minutes, optional, kind, group_code) VALUES ('T8-MOB', '🧘 Мобильность', 0, 'light', 0, 1, 'theme', 'mobility')
+  ON CONFLICT (code) DO UPDATE SET title = excluded.title, weekday = excluded.weekday, intensity = excluded.intensity, est_minutes = excluded.est_minutes, optional = excluded.optional, kind = excluded.kind, group_code = excluded.group_code;
+
 -- Убираем то, чего больше нет в JSON. Строки, на которые ссылаются логи, остаются.
 DELETE FROM templates
- WHERE code NOT IN ('W-A', 'W-B', 'W-C', 'W-D', 'W-E', 'W-F', 'W-G', 'M-NECK', 'M-POSTURE', 'M-HIPS')
+ WHERE code NOT IN ('W-A', 'W-B', 'W-C', 'W-D', 'W-E', 'W-F', 'W-G', 'M-NECK', 'M-POSTURE', 'M-HIPS', 'T1-NECK', 'T2-SCAP', 'T3-ROW', 'T4-POST', 'T5-PRESS', 'T6-LEGS', 'T7-CORE', 'T8-MOB')
    AND code NOT IN (SELECT template_code FROM sessions);
 DELETE FROM exercises
  WHERE code NOT IN ('NK1', 'NK2', 'NK3', 'NK4', 'NK5', 'NK6', 'NK7', 'NK8', 'NK9', 'NK10', 'SC1', 'SC2', 'SC3', 'SC4', 'SC5', 'SC6', 'SC8', 'SC9', 'SC10', 'RW1', 'RW2', 'RW5', 'RW6', 'RW7', 'RW8', 'PC1', 'PC2', 'PC3', 'PC4', 'PC5', 'PC6', 'PC7', 'PC8', 'PC9', 'PR1', 'PR3', 'PR4', 'PR5', 'PR6', 'LG2', 'LG4', 'LG5', 'LG6', 'LG7', 'CR1', 'CR2', 'CR3', 'CR4', 'CR5', 'CR6', 'CR7', 'CR8', 'MB1', 'MB2', 'MB3', 'MB4', 'MB5', 'MB6', 'MB7', 'MB8', 'MB9')

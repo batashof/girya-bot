@@ -36,20 +36,31 @@ export interface DayOptions {
   budgetMinutes?: number;
 }
 
+/**
+ * Оценка шеи, по которой строится сегодняшний день, и что она меняет. Нужна и программе
+ * дня, и тренировке по теме: инвариант `neck_safe` у них общий (docs/03).
+ */
+export async function neckToday(
+  db: D1Database,
+  user: User,
+  date: LocalMoment['date'],
+): Promise<{ score: NeckScore; adaptation: Adaptation }> {
+  const [todayScore, yesterdayScore, previous] = await Promise.all([
+    neckScoreFor(db, user.telegramId, date),
+    neckScoreFor(db, user.telegramId, addDays(date, -1)),
+    recentNeckScores(db, user.telegramId, date, 2),
+  ]);
+  const score = effectiveScore(todayScore, yesterdayScore);
+  return { score, adaptation: adaptationFor(score, previous) };
+}
+
 export async function loadDay(
   db: D1Database,
   user: User,
   moment: LocalMoment,
   options: DayOptions = {},
 ): Promise<Day | null> {
-  const [todayScore, yesterdayScore, previous] = await Promise.all([
-    neckScoreFor(db, user.telegramId, moment.date),
-    neckScoreFor(db, user.telegramId, addDays(moment.date, -1)),
-    recentNeckScores(db, user.telegramId, moment.date, 2),
-  ]);
-
-  const score = effectiveScore(todayScore, yesterdayScore);
-  const adaptation = adaptationFor(score, previous);
+  const { score, adaptation } = await neckToday(db, user, moment.date);
 
   const template = adaptation.recoveryOnly
     ? await loadTemplate(db, RECOVERY_TEMPLATE)

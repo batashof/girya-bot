@@ -60,6 +60,32 @@ describe('summarizeRange', () => {
     expect(week.done).toBe(3);
   });
 
+  it('считает тренировки по теме отдельно и не пускает их в серию и минуты', () => {
+    // ADR-016: тема — по запросу, она не заменяет программу дня.
+    const withThemes = [
+      ...sessions,
+      {
+        date: '2026-08-13',
+        kind: 'theme' as const,
+        status: 'done' as const,
+        minutes: 9,
+        neckScore: null,
+      },
+      {
+        date: '2026-08-14',
+        kind: 'theme' as const,
+        status: 'in_progress' as const,
+        minutes: null,
+        neckScore: null,
+      },
+    ];
+    const week = summarizeRange(withThemes, '2026-08-10', '2026-08-16');
+    const without = summarizeRange(sessions, '2026-08-10', '2026-08-16');
+    expect(week.themeCount).toBe(1);
+    expect(week.done).toBe(without.done);
+    expect(week.minutes).toBe(without.minutes);
+  });
+
   it('усредняет оценку шеи только по дням, когда спрашивали', () => {
     expect(summarizeRange(sessions, '2026-08-10', '2026-08-16').neckAverage).toBe(0.5);
   });

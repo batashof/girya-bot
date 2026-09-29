@@ -10,7 +10,7 @@ import type { NeckScore } from './adaptation';
 
 export interface SessionSummary {
   date: LocalDate;
-  kind: 'main' | 'mini';
+  kind: 'main' | 'mini' | 'theme';
   status: 'planned' | 'in_progress' | 'done' | 'skipped';
   minutes: number | null;
   neckScore: NeckScore | null;
@@ -26,6 +26,8 @@ export interface WeekSummary {
   /** Средняя оценка шеи за неделю; null, если ни разу не спрашивали. */
   neckAverage: number | null;
   miniCount: number;
+  /** Тренировок по теме, закрытых кнопкой «Закончить» (ADR-016). */
+  themeCount: number;
 }
 
 /** Сколько дней в неделе считается «полным» планом: тренировка каждый день. */
@@ -68,6 +70,9 @@ export function summarizeRange(
     neckAverage: scores.length === 0 ? null : average(scores),
     // Микро-сессии считаются отдельным счётчиком и в объём тренировок не входят (ADR-013).
     miniCount: inRange.filter((session) => session.kind === 'mini').length,
+    // Тренировки по теме тоже отдельно: они по запросу и в серию не входят (ADR-016).
+    themeCount: inRange.filter((session) => session.kind === 'theme' && session.status === 'done')
+      .length,
   };
 }
 

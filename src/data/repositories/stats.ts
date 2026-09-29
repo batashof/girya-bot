@@ -29,7 +29,7 @@ export async function loadSessionSummaries(
 
   return rows.map((row) => ({
     date: row.local_date,
-    kind: row.kind === 'mini' ? 'mini' : 'main',
+    kind: row.kind === 'mini' || row.kind === 'theme' ? row.kind : 'main',
     status: row.status as SessionSummary['status'],
     minutes: row.minutes,
     neckScore: row.neck_score !== null && isNeckScore(row.neck_score) ? row.neck_score : null,

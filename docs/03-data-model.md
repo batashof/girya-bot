@@ -25,6 +25,7 @@ CREATE TABLE users (
   paused_from      TEXT,                           -- пауза — диапазон, а не дедлайн
   paused_until     TEXT,
   snooze_until     TEXT,                           -- утреннее напоминание отложено кнопкой «Через час», UTC
+  training_mode    TEXT NOT NULL DEFAULT 'daily',  -- daily | on_demand: напоминать ли о программе дня (ADR-016)
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -79,7 +80,8 @@ CREATE TABLE templates (
   intensity   TEXT NOT NULL,             -- heavy | medium | light | recovery
   est_minutes INTEGER NOT NULL,
   optional    INTEGER NOT NULL DEFAULT 0,-- суббота по желанию: пропуск не рвёт серию
-  kind        TEXT NOT NULL DEFAULT 'day' -- day | mini
+  kind        TEXT NOT NULL DEFAULT 'day', -- day | mini | theme
+  group_code  TEXT                        -- для kind = 'theme': какую группу exercises собирает тема
 );
 
 -- «Один шаблон на день недели» — только для дней: у микро-блоков weekday = 0.
@@ -122,7 +124,7 @@ CREATE TABLE sessions (
   user_id       INTEGER NOT NULL REFERENCES users(telegram_id),
   local_date    TEXT NOT NULL,           -- YYYY-MM-DD
   template_code TEXT NOT NULL REFERENCES templates(code),
-  kind          TEXT NOT NULL DEFAULT 'main',  -- main | mini (микро-сессия по /mini)
+  kind          TEXT NOT NULL DEFAULT 'main',  -- main | mini (микро-сессия по /mini) | theme (тренировка по теме)
   week_in_block INTEGER NOT NULL,        -- 1..4, где 4 — разгрузка
   status        TEXT NOT NULL,           -- planned | in_progress | done | skipped
   neck_score    INTEGER,                 -- 0 нет боли … 3 сильно
@@ -231,6 +233,12 @@ CREATE INDEX idx_sets_exercise ON session_sets(exercise_code);
 
 **Почему микро-блоки живут в `templates`.**
 `/mini` — это те же три минуты по списку упражнений, что и день недели, только короче. Заводить ради трёх блоков отдельную пару таблиц значит дублировать и загрузку, и отрисовку. Микро-блоки помечены `kind = 'mini'` и `weekday = 0`, а уникальность «один шаблон на день недели» стала частичной. Сессии по ним пишутся с `kind = 'mini'` и на прогрессию и серию не влияют (ADR-013).
+
+**Почему темы тоже живут в `templates`.**
+Тренировка по теме (ADR-016) — это группа упражнений справочника, а не список пунктов, поэтому у строки с `kind = 'theme'` пунктов нет, а есть `group_code`. Шаблон ей нужен как якорь: сессия ссылается на `templates` внешним ключом. Сессии по теме пишутся с `kind = 'theme'`, их сколько угодно в день, и на прогрессию и серию они не влияют — пункт темы не привязан к лестнице.
+
+**`training_mode`.**
+`daily` — программа дня с утренним напоминанием и вечерним пингом; `on_demand` — напоминаний о программе нет, тренировка начинается по запросу. Это не пауза: `/pause` выключает бота целиком и прощает дни серии, а режим выключает только будильник.
 
 **`snooze_until` и `paused_from`.**
 Кнопка «Через час» переносит утреннее напоминание: момент хранится в UTC, а отметка об отправке снимается из `reminders_log`, иначе дедупликация не дала бы прислать его второй раз. `paused_from` нужен потому, что серия должна знать, какие именно дни прощать: из одного `paused_until` диапазон не восстановить.

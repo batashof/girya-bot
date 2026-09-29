@@ -112,6 +112,7 @@ const TEMPLATE_COLUMNS = [
   'est_minutes',
   'optional',
   'kind',
+  'group_code',
 ];
 
 lines.push('', '-- Шаблоны дней (docs/05-training-program.md)');
@@ -131,6 +132,7 @@ for (const template of templates.templates) {
       num(template.est_minutes),
       num(template.optional ?? 0),
       sql('day'),
+      'NULL',
     ].join(', ')})\n  ${onConflict('code', TEMPLATE_COLUMNS)};`,
   );
 
@@ -173,6 +175,7 @@ for (const block of templates.mini) {
       num(block.est_minutes),
       num(1),
       sql('mini'),
+      'NULL',
     ].join(', ')})\n  ${onConflict('code', TEMPLATE_COLUMNS)};`,
   );
   block.items.forEach((item, index) => {
@@ -195,11 +198,33 @@ for (const block of templates.mini) {
   });
 }
 
+lines.push('', '-- Темы тренировки по запросу (ADR-016): без пунктов, состав — по group_code');
+const knownGroups = new Set(exercises.map((exercise) => exercise.group_code));
+for (const theme of templates.themes) {
+  requireFields(theme, ['code', 'title', 'group'], theme.code);
+  if (!knownGroups.has(theme.group)) {
+    fail(`${theme.code}: группы «${theme.group}» нет ни у одного упражнения`);
+  }
+  lines.push(
+    `INSERT INTO templates (${TEMPLATE_COLUMNS.join(', ')}) VALUES (${[
+      sql(theme.code),
+      sql(theme.title),
+      num(0),
+      sql('light'),
+      num(0),
+      num(1),
+      sql('theme'),
+      sql(theme.group),
+    ].join(', ')})\n  ${onConflict('code', TEMPLATE_COLUMNS)};`,
+  );
+}
+
 // Что пропало из JSON — уходит из базы, но только если на него нет ни одной ссылки
 // из логов. Иначе строка остаётся мусором в справочнике: это дешевле, чем упавший сид.
 const templateCodes = [
   ...templates.templates.map((t) => t.code),
   ...templates.mini.map((b) => b.code),
+  ...templates.themes.map((theme) => theme.code),
 ];
 lines.push(
   '',
@@ -219,7 +244,7 @@ lines.push(
 writeFileSync(OUTPUT, `${lines.join('\n')}\n`);
 console.log(
   `${OUTPUT}: ${exercises.length} упражнений, ${templates.templates.length} шаблонов дня, ` +
-    `${templates.mini.length} микро-блока`,
+    `${templates.mini.length} микро-блока, ${templates.themes.length} тем`,
 );
 
 function expandItems(items, protocols, templateCode) {

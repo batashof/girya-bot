@@ -78,7 +78,9 @@ async function showMenu(ctx: Context, deps: BotDeps): Promise<void> {
     .text(`🔔 Микро-блоки: ${user.miniReminders ? 'вкл' : 'выкл'}`, 's:mini:')
     .row()
     .text('📶 Уровни', 's:levels:')
-    .text('⏸ Пауза', 's:pause:');
+    .text('⏸ Пауза', 's:pause:')
+    .row()
+    .text(buttons.mode(user.trainingMode), 's:mode:');
 
   await ctx.reply(texts.settings.menu, { reply_markup: keyboard });
 }
@@ -119,6 +121,18 @@ async function handle(ctx: Context, deps: BotDeps, action: string, value: string
       }
       await updateUser(deps.db, userId, { mini_reminders: user.miniReminders ? 0 : 1 });
       await done(ctx, deps);
+      return;
+    }
+    case 'mode': {
+      // Режим напоминаний о программе дня (ADR-016). Тот же переключатель есть в /train.
+      const user = await getUser(deps.db, userId);
+      if (user === null) {
+        return;
+      }
+      const mode = user.trainingMode === 'daily' ? 'on_demand' : 'daily';
+      await updateUser(deps.db, userId, { training_mode: mode });
+      await ctx.reply(texts.train.modeChanged(mode));
+      await showMenu(ctx, deps);
       return;
     }
     case 'gear': {

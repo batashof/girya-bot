@@ -66,6 +66,16 @@ export interface TemplateItem {
   optional: boolean;
 }
 
+/**
+ * Тема тренировки по запросу: одна группа упражнений справочника (шея, лопатки, ноги…).
+ * Живёт в `templates` с `kind = 'theme'` — к ней привязываются сессии (ADR-016).
+ */
+export interface Theme {
+  code: string;
+  title: string;
+  groupCode: string;
+}
+
 export interface DayTemplate {
   code: string;
   title: string;
@@ -110,11 +120,19 @@ export interface UserProfile {
 }
 
 /**
+ * Как пользователь тренируется. `daily` — программа дня с утренним напоминанием;
+ * `on_demand` — напоминаний о программе нет, тренировка начинается по запросу:
+ * программой дня или темой (ADR-016). Программа дня доступна в обоих режимах.
+ */
+export type TrainingMode = 'daily' | 'on_demand';
+
+/**
  * Полная запись пользователя. Резолверу дня хватает `UserProfile`; остальное нужно
  * напоминаниям и настройкам.
  */
 export interface User extends UserProfile {
   telegramId: number;
+  trainingMode: TrainingMode;
   /** HH:MM локального времени. */
   remindAt: string;
   eveningPingAt: string | null;

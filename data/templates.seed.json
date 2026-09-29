@@ -626,5 +626,48 @@
         }
       ]
     }
+  ],
+  "_comment_themes": "Темы тренировки по запросу (ADR-016): одна тема — одна группа упражнений справочника (exercises.group_code). Пунктов у темы нет — состав берётся из справочника, доза — из лестниц и шаблонов. Код задаёт порядок в меню.",
+  "themes": [
+    {
+      "code": "T1-NECK",
+      "title": "🦴 Шея",
+      "group": "neck"
+    },
+    {
+      "code": "T2-SCAP",
+      "title": "🎯 Лопатки и осанка",
+      "group": "scap"
+    },
+    {
+      "code": "T3-ROW",
+      "title": "🔙 Спина: тяги",
+      "group": "row"
+    },
+    {
+      "code": "T4-POST",
+      "title": "🍑 Задняя цепь",
+      "group": "posterior"
+    },
+    {
+      "code": "T5-PRESS",
+      "title": "💪 Жимы и плечи",
+      "group": "press"
+    },
+    {
+      "code": "T6-LEGS",
+      "title": "🦵 Ноги",
+      "group": "legs"
+    },
+    {
+      "code": "T7-CORE",
+      "title": "🧱 Корпус",
+      "group": "core"
+    },
+    {
+      "code": "T8-MOB",
+      "title": "🧘 Мобильность",
+      "group": "mobility"
+    }
   ]
 }

@@ -110,7 +110,16 @@ function renderGroup(group: Group): string {
  * на месте. Порядок блоков всегда один и тот же, чтобы глаз не искал: где я → что за
  * упражнение → сколько делать → сколько это займёт → как делать (docs/04).
  */
-export function renderCard(steps: WorkoutStep[], stepIndex: number, setIndex: number): string {
+export function renderCard(
+  steps: WorkoutStep[],
+  stepIndex: number,
+  setIndex: number,
+  /**
+   * Своя шапка вместо прогресс-бара дня. У тренировки по теме нет «из скольких»:
+   * упражнения выбираются по одному, и сколько их будет, заранее неизвестно.
+   */
+  header?: string,
+): string {
   const step = steps[stepIndex];
   if (step === undefined) {
     return '';
@@ -118,12 +127,14 @@ export function renderCard(steps: WorkoutStep[], stepIndex: number, setIndex: nu
   const { item } = step;
 
   const done = setsBefore(steps, stepIndex, setIndex);
-  const lines = [
-    `${progressBar(done, totalSets(steps))} упражнение ${stepIndex + 1} из ${steps.length}`,
-    `Осталось ~${minutesLeft(remainingSeconds(steps, stepIndex, setIndex))} мин`,
-    '',
-    `<b>${escapeHtml(stepTitle(step))}</b>`,
-  ];
+  const lines =
+    header === undefined
+      ? [
+          `${progressBar(done, totalSets(steps))} упражнение ${stepIndex + 1} из ${steps.length}`,
+          `Осталось ~${minutesLeft(remainingSeconds(steps, stepIndex, setIndex))} мин`,
+        ]
+      : [escapeHtml(header)];
+  lines.push('', `<b>${escapeHtml(stepTitle(step))}</b>`);
 
   if (step.sets > 1) {
     lines.push(`Подход ${setIndex} из ${step.sets}`);
