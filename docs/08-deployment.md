@@ -21,7 +21,7 @@
 2. Имя: `Girya`. Username: любой свободный, например `girya_personal_bot`.
 3. Сохранить токен — он понадобится как секрет `BOT_TOKEN`.
 4. Сразу сделать второго бота для разработки (`girya_dev_bot`) — чтобы отладка не ломала боевой.
-5. Полезное в BotFather: `/setcommands` — список команд из [04-bot-ux.md](04-bot-ux.md), `/setdescription`, `/setprivacy` → Enabled.
+5. Полезное в BotFather: `/setdescription`, `/setprivacy` → Enabled. Меню команд (`/setcommands`) руками не заполнять: бот выставляет его сам через `setMyCommands` на первом cron после деплоя — список живёт в `menuCommands` в `src/bot/ui/texts.ts` и уходит повторно, только когда изменился.
 
 Свой Telegram ID узнать у [@userinfobot](https://t.me/userinfobot) — это `OWNER_TELEGRAM_ID`.
 
