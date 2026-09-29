@@ -32,8 +32,8 @@ export interface Day {
 const RECOVERY_TEMPLATE = 'W-G';
 
 export interface DayOptions {
-  /** Урезанный бюджет для «сокращённой версии» вечернего пинга. */
-  budgetMinutes?: number;
+  /** «Сокращённая версия» вечернего пинга: только шея и основное движение. */
+  short?: boolean;
 }
 
 /**
@@ -79,15 +79,13 @@ export async function loadDay(
   const workout = resolveWorkout({
     date: moment.date,
     template,
-    user:
-      options.budgetMinutes === undefined
-        ? user
-        : { ...user, sessionMinutes: options.budgetMinutes },
+    user,
     exercises,
     chainSteps,
     progression,
     swaps,
     adaptation,
+    short: options.short === true,
   });
 
   return {

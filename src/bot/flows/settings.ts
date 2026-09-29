@@ -71,10 +71,9 @@ async function showMenu(ctx: Context, deps: BotDeps): Promise<void> {
     .text(`⏰ ${user.remindAt}`, 's:remind:')
     .text(`🌍 ${user.timezone}`, 's:timezone:')
     .row()
-    .text(`⏱ ${user.sessionMinutes} мин`, 's:minutes:')
     .text('🏋️ Инвентарь', 's:gear:')
-    .row()
     .text(`📏 ${profileLine(user)}`, 's:profile:')
+    .row()
     .text(buttons.mode(user.trainingMode), 's:mode:')
     .row()
     .text('📶 Уровни', 's:levels:')
@@ -103,15 +102,6 @@ async function handle(ctx: Context, deps: BotDeps, action: string, value: string
       await setUiState<State>(deps.db, userId, SCREEN, { field: 'bells' });
       await ctx.reply(texts.onboarding.bells);
       return;
-    case 'minutes': {
-      if (value === '') {
-        await ctx.reply(texts.onboarding.minutes, { reply_markup: minutesKeyboard() });
-        return;
-      }
-      await updateUser(deps.db, userId, { session_minutes: Number(value) });
-      await done(ctx, deps);
-      return;
-    }
     case 'mode': {
       // Режим напоминаний о программе дня (ADR-016). Тот же переключатель есть в /train.
       const user = await getUser(deps.db, userId);
@@ -319,14 +309,6 @@ async function pause(ctx: Context, deps: BotDeps, value: string): Promise<void> 
 async function done(ctx: Context, deps: BotDeps): Promise<void> {
   await ctx.reply(texts.settings.saved);
   await showMenu(ctx, deps);
-}
-
-function minutesKeyboard(): InlineKeyboard {
-  const keyboard = new InlineKeyboard();
-  for (const minutes of [10, 15, 20, 25]) {
-    keyboard.text(String(minutes), `s:minutes:${minutes}`);
-  }
-  return keyboard;
 }
 
 function pauseKeyboard(): InlineKeyboard {

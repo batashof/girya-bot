@@ -758,6 +758,8 @@ class Front:
     bells: tuple[float | None, float | None] = (None, None)
     # Тень под руками при виде сверху: насколько они оторваны от пола.
     lift: float = 0.0
+    # Плечи к ушам: доля высоты корпуса, на которую плечи уходят вверх, голова стоит.
+    shrug: float = 0.0
 
 
 def front_axes(pose: Front) -> tuple[Point, Point, float]:
@@ -768,7 +770,7 @@ def front_axes(pose: Front) -> tuple[Point, Point, float]:
 
 def front_shoulders(pose: Front) -> tuple[Point, Point]:
     u, side, height = front_axes(pose)
-    base = add(pose.pelvis, u, height * 0.90)
+    base = add(pose.pelvis, u, height * (0.90 + pose.shrug))
     return add(base, side, -SHOULDER_W), add(base, side, SHOULDER_W)
 
 
@@ -2137,6 +2139,92 @@ def open_book(canvas: Canvas, t: float) -> None:
         canvas.arrow(arc[-2], arc[-1])
 
 
+def shoulder_level(canvas: Canvas, shoulder: Point, reach: float) -> None:
+    """Пунктир на уровне плеча: выше рука не идёт."""
+    for index in range(6):
+        x0 = shoulder[0] + reach * index / 6
+        canvas.bone((x0, shoulder[1]), (x0 + reach / 12, shoulder[1]), 0.008, ACCENT)
+
+
+def lateral_raise(canvas: Canvas, t: float) -> None:
+    """PR7. Гиря в сторону и чуть вперёд до уровня плеча; локоть мягкий, плечо не к уху.
+
+    Вверх бодро, вниз втрое медленнее — как в дозе «1 с вверх, 3 с вниз».
+    """
+    k = rep(t, 0.18, 0.06, 0.54)
+    pose = Front(
+        pelvis=(0.0, 0.84),
+        neck=(0.0, 1.40),
+        feet=((-0.12, 0.04), (0.12, 0.04)),
+        bells=(None, 0.055),
+    )
+    shoulder = front_shoulders(pose)[1]
+    a = math.radians(lerp(8.0, 88.0, k))
+    hand = (shoulder[0] + math.sin(a) * ARM * 0.93, shoulder[1] - math.cos(a) * ARM * 0.93)
+    pose.hands = (None, hand)
+    pose.elbows = ((-1.0, -0.6), (0.4, -1.0))
+    shoulder_level(canvas, shoulder, ARM * 1.05)
+    draw_front(canvas, pose)
+
+
+def overhead_shrug(canvas: Canvas, t: float) -> None:
+    """SC11. Прямые руки с гирями буквой Y; плечи тянутся к ушам и медленно опускаются.
+
+    Руки не сгибаются и не опускаются: двигаются только лопатки, поэтому руки едут
+    вверх ровно на ход плеч.
+    """
+    k = rep(t, 0.20, 0.36, 0.20)
+    pose = Front(
+        pelvis=(0.0, 0.84),
+        neck=(0.0, 1.40),
+        feet=((-0.13, 0.04), (0.13, 0.04)),
+        bells=(0.05, 0.05),
+        shrug=lerp(-0.05, 0.16, k),
+    )
+    hands = []
+    for sign, shoulder in zip((-1, 1), front_shoulders(pose)):
+        a = math.radians(22.0)
+        hands.append((shoulder[0] + sign * math.sin(a) * ARM * 0.96, shoulder[1] + math.cos(a) * ARM * 0.96))
+    pose.hands = (hands[0], hands[1])
+    pose.elbows = ((-1.0, 0.2), (1.0, 0.2))
+    draw_front(canvas, pose)
+
+
+def serratus_punch(t: float) -> Pose:
+    """SC12. Лёжа, рука с гирей прямая в потолок; лопатка выталкивает гирю выше, локоть прямой."""
+    k = rep(t, 0.24, 0.24, 0.30)
+    shoulder = (0.28, lerp(0.11, 0.20, k))
+    return supine(
+        shoulder=shoulder,
+        wrist=straight_arm(shoulder, 90.0),
+        bell=0.07,
+        bell_hang=(0.35, -0.9),
+        guide=((0.28 + 0.07, 0.11 + ARM * 0.9), (0.28 + 0.07, 0.11 + ARM * 1.02)),
+    )
+
+
+def shrug_drop(canvas: Canvas, t: float) -> None:
+    """NK11. Плечи к ушам, задержка — и сброс одним движением; потом долго висят расслабленно."""
+    if t < 0.22:
+        k = min_jerk(t / 0.22)
+    elif t < 0.46:
+        k = 1.0
+    elif t < 0.52:
+        k = 1.0 - (t - 0.46) / 0.06
+    else:
+        k = 0.0
+    pose = Front(pelvis=(0.0, -0.56), neck=(0.0, 0.04), shrug=lerp(-0.05, 0.16, k))
+    draw_front(canvas, pose)
+    if 0.46 <= t < 0.66:
+        # Стрелки вниз в момент сброса: плечи падают, а не опускаются с усилием.
+        for sign, shoulder in zip((-1, 1), front_shoulders(pose)):
+            top = add(shoulder, (sign * 0.10, 0.0))
+            bottom = add(top, (0.0, -0.12))
+            canvas.bone(top, bottom, 0.012, ACCENT)
+            canvas.bone(bottom, add(bottom, (-0.03, 0.04)), 0.012, ACCENT)
+            canvas.bone(bottom, add(bottom, (0.03, 0.04)), 0.012, ACCENT)
+
+
 def lerp3(a: Point3, b: Point3, k: float) -> Point3:
     return (lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k))
 
@@ -2170,6 +2258,7 @@ DEMOS: dict[str, Demo] = {
     "NK8": Demo("Подъём головы лёжа", figure(supine_head_lift), LYING),
     "NK9": Demo("Разгибатели лёжа", figure(prone_head_lift), PRONE),
     "NK10": Demo("Дыхание 90/90", breathing_90_90, Camera(origin_x=0.56, origin_y=0.72, zoom=0.95)),
+    "NK11": Demo("Подъём и сброс плеч", shrug_drop, Camera(origin_x=0.5, origin_y=0.52, zoom=1.7, ground=False)),
     # Лопатки
     "SC1": Demo("Prone Y", prone_arms("Y"), TOPDOWN),
     "SC2": Demo("Prone T", prone_arms("T"), TOPDOWN),
@@ -2179,6 +2268,8 @@ DEMOS: dict[str, Demo] = {
     "SC8": Demo("Вис на турнике", with_bar(bar_hang), Camera(origin_x=0.5, origin_y=0.96, zoom=0.7, ground=False)),
     "SC9": Demo("Пуловер лёжа", figure(pullover), LYING),
     "SC10": Demo("Обратная «муха»", reverse_fly, Camera(origin_x=0.5, origin_y=0.9, zoom=0.9)),
+    "SC11": Demo("Шраги с руками вверху", overhead_shrug, Camera(origin_x=0.5, origin_y=0.94, zoom=0.8)),
+    "SC12": Demo("Вынос гири вверх лёжа", figure(serratus_punch), LYING),
     # Тяги
     "RW1": Demo("Тяга одной рукой", bent_row, Camera(origin_x=0.44, origin_y=0.86, zoom=0.95)),
     "RW2": Demo("Тяга двумя гирями", figure(gorilla_row), Camera(origin_x=0.44, zoom=1.0)),
@@ -2202,6 +2293,7 @@ DEMOS: dict[str, Demo] = {
     "PR4": Demo("Жим лёжа на полу", figure(floor_press), LYING),
     "PR5": Demo("Внешняя ротация", external_rotation, Camera(origin_x=0.64, origin_y=0.66, zoom=0.95)),
     "PR6": Demo("Y-raise в наклоне", figure(y_raise), Camera(origin_x=0.4, zoom=0.9)),
+    "PR7": Demo("Подъём гири в сторону", lateral_raise, Camera(origin_x=0.42, origin_y=0.9, zoom=0.86)),
     # Ноги
     "LG2": Demo("Выпад назад", figure(back_lunge), Camera(origin_x=0.56, zoom=0.9)),
     "LG4": Demo("Болгарский присед", bulgarian_squat, Camera(origin_x=0.58, zoom=0.9)),

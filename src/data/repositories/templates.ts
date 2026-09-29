@@ -1,12 +1,11 @@
 import { all, bool, one } from '../db';
-import type { Chain, DayTemplate, TemplateItem, Theme } from '../../domain/types';
+import type { Chain, Complex, DayTemplate, TemplateItem, Theme } from '../../domain/types';
 
 interface TemplateRow {
   code: string;
   title: string;
   weekday: number;
   intensity: string;
-  est_minutes: number;
   optional: number;
 }
 
@@ -31,18 +30,18 @@ export async function loadTemplateForWeekday(
 ): Promise<DayTemplate | null> {
   const template = await one<TemplateRow>(
     db,
-    `SELECT code, title, weekday, intensity, est_minutes, optional
+    `SELECT code, title, weekday, intensity, optional
        FROM templates WHERE weekday = ? AND kind = 'day'`,
     weekday,
   );
   return template === null ? null : withItems(db, template);
 }
 
-/** Шаблон по коду: день восстановления берётся именно так. */
+/** Шаблон по коду: день восстановления и комплексы берутся именно так. */
 export async function loadTemplate(db: D1Database, code: string): Promise<DayTemplate | null> {
   const template = await one<TemplateRow>(
     db,
-    `SELECT code, title, weekday, intensity, est_minutes, optional FROM templates WHERE code = ?`,
+    `SELECT code, title, weekday, intensity, optional FROM templates WHERE code = ?`,
     code,
   );
   return template === null ? null : withItems(db, template);
@@ -61,6 +60,15 @@ export async function loadThemes(db: D1Database): Promise<Theme[]> {
   );
 }
 
+/** Комплексы под конкретную проблему в порядке меню (ADR-018). Пункты — через `loadTemplate`. */
+export async function loadComplexes(db: D1Database): Promise<Complex[]> {
+  const rows = await all<{ code: string; title: string; note: string | null }>(
+    db,
+    `SELECT code, title, note FROM templates WHERE kind = 'complex' ORDER BY code`,
+  );
+  return rows.map((row) => ({ code: row.code, title: row.title, note: row.note ?? '' }));
+}
+
 async function withItems(db: D1Database, template: TemplateRow): Promise<DayTemplate> {
   const items = await all<TemplateItemRow>(
     db,
@@ -77,7 +85,6 @@ async function withItems(db: D1Database, template: TemplateRow): Promise<DayTemp
     title: template.title,
     weekday: template.weekday,
     intensity: template.intensity as DayTemplate['intensity'],
-    estMinutes: template.est_minutes,
     optional: bool(template.optional),
     items: items.map(toItem),
   };

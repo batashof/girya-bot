@@ -11,7 +11,7 @@ import type { NeckScore } from './adaptation';
 export interface SessionSummary {
   date: LocalDate;
   /** `mini` — микро-блоки из истории до ADR-017: в счётчики не входят, но и основной тренировкой не считаются. */
-  kind: 'main' | 'mini' | 'theme';
+  kind: 'main' | 'mini' | 'theme' | 'complex';
   status: 'planned' | 'in_progress' | 'done' | 'skipped';
   minutes: number | null;
   neckScore: NeckScore | null;
@@ -28,6 +28,8 @@ export interface WeekSummary {
   neckAverage: number | null;
   /** Тренировок по теме, закрытых кнопкой «Закончить» (ADR-016). */
   themeCount: number;
+  /** Пройденных комплексов (ADR-018). */
+  complexCount: number;
 }
 
 /** Сколько дней в неделе считается «полным» планом: тренировка каждый день. */
@@ -69,9 +71,14 @@ export function summarizeRange(
     minutes: done.reduce((sum, session) => sum + (session.minutes ?? 0), 0),
     neckAverage: scores.length === 0 ? null : average(scores),
     // Тренировки по теме тоже отдельно: они по запросу и в серию не входят (ADR-016).
-    themeCount: inRange.filter((session) => session.kind === 'theme' && session.status === 'done')
-      .length,
+    themeCount: countDone(inRange, 'theme'),
+    // Комплексы — тоже вне программы: в серию и «из 7» не входят (ADR-018).
+    complexCount: countDone(inRange, 'complex'),
   };
+}
+
+function countDone(sessions: SessionSummary[], kind: SessionSummary['kind']): number {
+  return sessions.filter((session) => session.kind === kind && session.status === 'done').length;
 }
 
 export type Trend = 'down' | 'flat' | 'up' | 'unknown';

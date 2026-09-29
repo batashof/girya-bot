@@ -18,7 +18,7 @@ import { loadDay } from '../day';
 import { userIdOf, type BotDeps } from '../deps';
 
 /**
- * Онбординг из docs/04-bot-ux.md: восемь вопросов, всё кнопками кроме чисел.
+ * Онбординг из docs/04-bot-ux.md: шесть вопросов, всё кнопками кроме чисел.
  *
  * Состояние шага лежит в `ui_state`, а не в памяти воркера: изолят живёт секунды,
  * а пауза между вопросами — сколько угодно.
@@ -26,7 +26,7 @@ import { userIdOf, type BotDeps } from '../deps';
 
 const SCREEN = 'onboarding';
 
-type Step = 'timezone' | 'remind' | 'minutes' | 'profile' | 'bells' | 'gear' | 'level';
+type Step = 'timezone' | 'remind' | 'profile' | 'bells' | 'gear' | 'level';
 
 interface State {
   step: Step;
@@ -37,7 +37,6 @@ interface State {
 
 const TIMEZONES = ['Europe/Warsaw', 'Europe/Moscow', 'Europe/Berlin', 'Asia/Tbilisi'];
 const REMIND_TIMES = ['06:30', '07:00', '07:30', '08:00'];
-const MINUTES = [10, 15, 20, 25];
 
 export function registerOnboarding(bot: Bot, deps: BotDeps): void {
   bot.command('start', async (ctx) => {
@@ -103,11 +102,6 @@ async function handleChoice(
         return;
       }
       await updateUser(deps.db, userId, { remind_at: value });
-      await ask(ctx, deps, 'minutes');
-      return;
-    }
-    case 'minutes': {
-      await updateUser(deps.db, userId, { session_minutes: Number(value) });
       await ask(ctx, deps, 'profile');
       return;
     }
@@ -162,7 +156,7 @@ async function handleText(ctx: Context, deps: BotDeps, state: State, text: strin
         return;
       }
       await updateUser(deps.db, userId, { remind_at: time });
-      await ask(ctx, deps, 'minutes');
+      await ask(ctx, deps, 'profile');
       return;
     }
     case 'profile': {
@@ -198,10 +192,6 @@ async function ask(ctx: Context, deps: BotDeps, step: Step): Promise<void> {
     case 'remind':
       await save(deps, userId, { step });
       await ctx.reply(texts.onboarding.remind, { reply_markup: remindKeyboard() });
-      return;
-    case 'minutes':
-      await save(deps, userId, { step });
-      await ctx.reply(texts.onboarding.minutes, { reply_markup: minutesKeyboard() });
       return;
     case 'profile':
       await save(deps, userId, { step, awaitingText: true });
@@ -241,7 +231,6 @@ async function finish(ctx: Context, deps: BotDeps): Promise<void> {
   const bells = user.kettlebells.map((bell) => `${bell.weight}×${bell.count}`).join(', ');
   const summary = [
     `Пояс: ${user.timezone}, напоминание в ${user.remindAt}`,
-    `Бюджет: ${user.sessionMinutes} мин`,
     user.heightCm === null ? null : `Профиль: ${user.heightCm}/${user.weightKg}`,
     bells === '' ? null : `Гири: ${bells}`,
   ]
@@ -283,14 +272,6 @@ function remindKeyboard(): InlineKeyboard {
     keyboard.text(time, `ob:remind:${time}`);
   }
   return keyboard.row().text(buttons.remindOther, 'ob:remind:other');
-}
-
-function minutesKeyboard(): InlineKeyboard {
-  const keyboard = new InlineKeyboard();
-  for (const minutes of MINUTES) {
-    keyboard.text(`${minutes}`, `ob:minutes:${minutes}`);
-  }
-  return keyboard;
 }
 
 function bellsKeyboard(): InlineKeyboard {

@@ -59,7 +59,8 @@ describe('карточка упражнения', () => {
     expect(card).toContain(`🔁 ${row.item.target} повторов на каждую сторону`);
     expect(card).toContain('⏱ Каждый повтор ~3 с: 1 с вверх, 2 с вниз');
     expect(card).toContain('Гиря 5 кг');
-    expect(card).toMatch(/Осталось ~\d+ мин/);
+    // Время тренировки не планируется (ADR-018): ни «осталось», ни «примерно».
+    expect(card).not.toMatch(/Осталось|мин/);
   });
 
   it('у первого подхода отдыха нет', () => {

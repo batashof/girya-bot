@@ -35,9 +35,6 @@ const SCREEN = 'workout';
 /** Сколько дней держится ручная замена (docs/06). */
 const SWAP_DAYS = 7;
 
-/** «Сокращённая версия» вечернего пинга: шея и одно основное движение (docs/04). */
-const SHORT_MINUTES = 7;
-
 /** На сколько откладывает кнопка «Через час». */
 const SNOOZE_MINUTES = 60;
 
@@ -50,6 +47,11 @@ interface State {
   messageId: number;
   /** У карточки с картинкой правится подпись, а не текст. */
   media: boolean;
+  /**
+   * «Сокращённая версия» вечернего пинга: шея и основное движение (docs/04). Флаг живёт
+   * в состоянии, иначе следующий подход собирал бы уже полный день и шаги бы разъехались.
+   */
+  short?: boolean;
 }
 
 export function registerWorkout(bot: Bot, deps: BotDeps): void {
@@ -72,8 +74,8 @@ export function registerWorkout(bot: Bot, deps: BotDeps): void {
   });
 }
 
-async function start(ctx: Context, deps: BotDeps, budgetMinutes?: number): Promise<void> {
-  const context = await currentContext(ctx, deps, budgetMinutes);
+async function start(ctx: Context, deps: BotDeps, short = false): Promise<void> {
+  const context = await currentContext(ctx, deps, short);
   if (context === null) {
     return;
   }
@@ -105,6 +107,7 @@ async function start(ctx: Context, deps: BotDeps, budgetMinutes?: number): Promi
     step: position.step,
     set: position.set,
     ...card,
+    ...(short ? { short } : {}),
   });
 }
 
@@ -120,8 +123,8 @@ async function handleAction(
       await start(ctx, deps);
       return;
     case 'short':
-      // Вечерний пинг: лучше семь минут, чем ноль — серия сохраняется (docs/04).
-      await start(ctx, deps, SHORT_MINUTES);
+      // Вечерний пинг: лучше шея и одно движение, чем ноль — серия сохраняется (docs/04).
+      await start(ctx, deps, true);
       return;
     case 'snooze':
       await snooze(ctx, deps);
@@ -169,7 +172,7 @@ async function advanceStep(
   state: State,
   feedback: Feedback,
 ): Promise<void> {
-  const context = await currentContext(ctx, deps);
+  const context = await currentContext(ctx, deps, state.short === true);
   if (context === null) {
     return;
   }
@@ -341,7 +344,7 @@ async function describeTomorrow(deps: BotDeps, user: User, day: Day): Promise<st
   if (tomorrow === null) {
     return null;
   }
-  return `${weekdayName(weekday)}, ${tomorrow.workout.title}, ~${tomorrow.workout.estimatedMinutes} мин`;
+  return `${weekdayName(weekday)}, ${tomorrow.workout.title}`;
 }
 
 /**
@@ -381,13 +384,13 @@ async function skipToday(ctx: Context, deps: BotDeps): Promise<void> {
 
 /** `/swap` — альтернативы текущему упражнению из той же swap_group (docs/06). */
 async function offerSwap(ctx: Context, deps: BotDeps): Promise<void> {
-  const context = await currentContext(ctx, deps);
+  const state = await workoutState(ctx, deps);
+  const context = await currentContext(ctx, deps, state?.short === true);
   if (context === null) {
     return;
   }
   const { user, day } = context;
-  const stored = await getUiState<State>(deps.db, user.telegramId);
-  const current = currentItem(day, stored?.screen === SCREEN ? stored.payload : null);
+  const current = currentItem(day, state);
 
   if (current === null) {
     await ctx.reply(texts.workout.nothingToSwap);
@@ -414,13 +417,13 @@ async function offerSwap(ctx: Context, deps: BotDeps): Promise<void> {
 }
 
 async function applySwap(ctx: Context, deps: BotDeps, toCode: string): Promise<void> {
-  const context = await currentContext(ctx, deps);
+  const state = await workoutState(ctx, deps);
+  const context = await currentContext(ctx, deps, state?.short === true);
   if (context === null) {
     return;
   }
   const { user, day } = context;
-  const stored = await getUiState<State>(deps.db, user.telegramId);
-  const current = currentItem(day, stored?.screen === SCREEN ? stored.payload : null);
+  const current = currentItem(day, state);
   const replacement = day.exercises.get(toCode);
   if (current === null || replacement === undefined) {
     return;
@@ -435,12 +438,11 @@ async function applySwap(ctx: Context, deps: BotDeps, toCode: string): Promise<v
   );
   await ctx.reply(texts.workout.swapped(current.exercise.name, replacement.name));
 
-  if (stored?.screen === SCREEN) {
-    const refreshed = await loadDay(deps.db, user, day.moment);
+  if (state !== null) {
+    const refreshed = await loadDay(deps.db, user, day.moment, { short: state.short === true });
     if (refreshed !== null) {
       // Упражнение сменилось — старую карточку не правим, а шлём новую со своей схемой.
       const steps = toSteps(refreshed.workout);
-      const state = stored.payload;
       const card = await sendCard(ctx, deps, steps, state.step, state.set);
       await setUiState<State>(deps.db, user.telegramId, SCREEN, { ...state, ...card });
     }
@@ -495,22 +497,23 @@ function resumePosition(
   return null;
 }
 
+/** Идущая тренировка дня, если она есть. */
+async function workoutState(ctx: Context, deps: BotDeps): Promise<State | null> {
+  const stored = await getUiState<State>(deps.db, userIdOf(ctx));
+  return stored?.screen === SCREEN ? stored.payload : null;
+}
+
 async function currentContext(
   ctx: Context,
   deps: BotDeps,
-  budgetMinutes?: number,
+  short = false,
 ): Promise<{ user: User; day: Day } | null> {
   const user = await getUser(deps.db, userIdOf(ctx));
   if (user === null) {
     await ctx.reply(texts.needOnboarding);
     return null;
   }
-  const day = await loadDay(
-    deps.db,
-    user,
-    localMoment(new Date(), user.timezone),
-    budgetMinutes === undefined ? {} : { budgetMinutes },
-  );
+  const day = await loadDay(deps.db, user, localMoment(new Date(), user.timezone), { short });
   if (day === null) {
     await ctx.reply(texts.noTemplate);
     return null;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayBudgetMinutes, resolveWorkout, weekInBlock } from '../src/domain/program';
+import { resolveWorkout, weekInBlock } from '../src/domain/program';
 import type { Chain, PlannedItem } from '../src/domain/types';
 import {
   baseProgression,
@@ -18,6 +18,7 @@ function resolve(options: {
   user?: Partial<ReturnType<typeof defaultUser>>;
   levels?: Partial<Record<Chain, number>>;
   swaps?: [string, string][];
+  short?: boolean;
 }) {
   const progressionOverrides: Partial<Record<Chain, { chainLevel: number }>> = {};
   for (const [chain, level] of Object.entries(options.levels ?? {})) {
@@ -31,6 +32,7 @@ function resolve(options: {
     chainSteps,
     progression: baseProgression(progressionOverrides),
     swaps: new Map(options.swaps ?? []),
+    short: options.short ?? false,
   });
 }
 
@@ -62,11 +64,12 @@ describe('resolveWorkout', () => {
     }
   });
 
-  it('укладывает каждый день в бюджет минут', () => {
+  it('ничего не выкидывает ради времени: время не планируется (ADR-018)', () => {
     for (let weekday = 1; weekday <= 7; weekday += 1) {
+      const template = templateFor(weekday);
       const workout = resolve({ weekday });
-      const budget = dayBudgetMinutes(templateFor(weekday), 15, workout.deload);
-      expect(workout.estimatedMinutes, `день ${weekday}`).toBeLessThanOrEqual(budget);
+      expect(workout.items, `день ${weekday}`).toHaveLength(template.items.length);
+      expect(workout.dropped, `день ${weekday}`).toEqual([]);
     }
   });
 
@@ -109,51 +112,38 @@ describe('resolveWorkout', () => {
     expect(heavier.items.find((item) => item.block === 'main')?.weight).toBe(8);
   });
 
-  it('на разгрузочной неделе режет подходы и бюджет, но не уровни', () => {
+  it('на разгрузочной неделе режет подходы, но не уровни и не состав', () => {
     const normal = resolve({ weekday: 1, date: '2026-08-03' });
     const deload = resolve({ weekday: 1, date: '2026-08-24' });
 
     expect(normal.deload).toBe(false);
     expect(deload.deload).toBe(true);
-    expect(deload.estimatedMinutes).toBeLessThanOrEqual(10);
+    expect(codes(deload.items)).toEqual(codes(normal.items));
     expect(Math.max(...deload.items.map((item) => item.sets))).toBeLessThanOrEqual(2);
     expect(deload.items.find((item) => item.block === 'main')?.exercise.code).toBe(
       normal.items.find((item) => item.block === 'main')?.exercise.code,
     );
   });
 
-  it('при урезанном бюджете жертвует мобилити, но не шеей и основным движением', () => {
-    const short = resolve({ weekday: 1, user: { sessionMinutes: 10 } });
+  it('сокращённая версия — только шея и основное движение', () => {
+    const short = resolve({ weekday: 1, short: true });
     const blocks = new Set(short.items.map((item) => item.block));
 
-    expect(blocks.has('neck')).toBe(true);
-    expect(blocks.has('main')).toBe(true);
-    expect(blocks.has('mobility')).toBe(false);
-    expect(short.dropped.length).toBeGreaterThan(0);
+    expect(blocks).toEqual(new Set(['neck', 'main']));
+    // Не «не влезло», а сокращение по просьбе: в dropped оно не попадает.
+    expect(short.dropped).toEqual([]);
   });
 
-  it('на большем бюджете оставляет больше пунктов', () => {
-    const short = resolve({ weekday: 1, user: { sessionMinutes: 10 } });
-    const long = resolve({ weekday: 1, user: { sessionMinutes: 25 } });
-
-    expect(long.items.length).toBeGreaterThan(short.items.length);
-  });
-
-  it('даёт длинному дню его собственный потолок, а не будний бюджет', () => {
-    // Суббота по желанию — 20–25 минут, иначе круговой блок не влезал бы никогда (ADR-012).
+  it('длинный день и круговой блок целиком', () => {
     const saturday = resolve({ weekday: 6 });
 
     expect(saturday.optional).toBe(true);
-    expect(saturday.estimatedMinutes).toBeGreaterThan(15);
     expect(codes(saturday.items).filter((code) => code === 'PC3')).toHaveLength(1);
+    expect(saturday.items.filter((item) => item.block === 'circuit')).toHaveLength(4);
   });
 
-  it('не считает прогулку частью утреннего бюджета', () => {
-    // Воскресенье — «10 минут + прогулка»: полчаса ходьбы не должны вытеснять растяжку.
-    const sunday = resolve({ weekday: 7 });
-
-    expect(codes(sunday.items)).toContain('MB9');
-    expect(sunday.estimatedMinutes).toBeLessThanOrEqual(15);
+  it('воскресенье заканчивается прогулкой', () => {
+    expect(codes(resolve({ weekday: 7 }).items).at(-1)).toBe('MB9');
   });
 
   it('заменяет упражнение, если инвентаря нет, на доступное из той же группы', () => {

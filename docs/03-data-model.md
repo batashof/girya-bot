@@ -12,8 +12,6 @@ CREATE TABLE users (
   timezone         TEXT NOT NULL DEFAULT 'Europe/Warsaw',
   remind_at        TEXT NOT NULL DEFAULT '07:30',  -- HH:MM локального времени
   evening_ping_at  TEXT             DEFAULT '20:00',
-  session_minutes  INTEGER NOT NULL DEFAULT 15,    -- бюджет времени: 10 | 15 | 20 | 25
-  mini_reminders   INTEGER NOT NULL DEFAULT 0,     -- не используется с ADR-017 (микро-блоки убраны); колонка оставлена, SQLite её не удалит без пересборки таблицы
   height_cm        INTEGER,                        -- 190
   weight_kg        REAL,                           -- 73
   birth_year       INTEGER,                        -- 1996
@@ -80,19 +78,19 @@ CREATE TABLE chain_steps (
   PRIMARY KEY (chain, level)
 );
 
--- Шаблоны дней: W-A … W-G
+-- Шаблоны: дни W-A … W-G, темы T*, комплексы C*
 CREATE TABLE templates (
   code        TEXT PRIMARY KEY,          -- W-A
   title       TEXT NOT NULL,             -- «Спина и осанка»
   weekday     INTEGER NOT NULL,          -- 1=Пн … 7=Вс
   intensity   TEXT NOT NULL,             -- heavy | medium | light | recovery
-  est_minutes INTEGER NOT NULL,
   optional    INTEGER NOT NULL DEFAULT 0,-- суббота по желанию: пропуск не рвёт серию
-  kind        TEXT NOT NULL DEFAULT 'day', -- day | theme (mini — только в истории до ADR-017)
-  group_code  TEXT                        -- для kind = 'theme': какую группу exercises собирает тема
+  kind        TEXT NOT NULL DEFAULT 'day', -- day | theme | complex (mini — только в истории до ADR-017)
+  group_code  TEXT,                       -- для kind = 'theme': какую группу exercises собирает тема
+  note        TEXT                        -- для kind = 'complex': для чего комплекс (миграция 0010)
 );
 
--- «Один шаблон на день недели» — только для дней: у тем weekday = 0.
+-- «Один шаблон на день недели» — только для дней: у тем и комплексов weekday = 0.
 CREATE UNIQUE INDEX idx_templates_weekday ON templates(weekday) WHERE kind = 'day';
 
 CREATE TABLE template_items (
@@ -133,7 +131,7 @@ CREATE TABLE sessions (
   user_id       INTEGER NOT NULL REFERENCES users(telegram_id),
   local_date    TEXT NOT NULL,           -- YYYY-MM-DD
   template_code TEXT NOT NULL REFERENCES templates(code),
-  kind          TEXT NOT NULL DEFAULT 'main',  -- main | theme (тренировка по теме) | mini (только история: микро-блоки убраны в ADR-017)
+  kind          TEXT NOT NULL DEFAULT 'main',  -- main | theme (по теме) | complex (комплекс, ADR-018) | mini (только история, ADR-017)
   week_in_block INTEGER NOT NULL,        -- 1..4, где 4 — разгрузка
   status        TEXT NOT NULL,           -- planned | in_progress | done | skipped
   neck_score    INTEGER,                 -- 0 нет боли … 3 сильно
@@ -246,6 +244,12 @@ CREATE INDEX idx_sets_exercise ON session_sets(exercise_code);
 **Почему темы живут в `templates`.**
 Тренировка по теме (ADR-016) — это группа упражнений справочника, а не список пунктов, поэтому у строки с `kind = 'theme'` пунктов нет, а есть `group_code`. Шаблон ей нужен как якорь: сессия ссылается на `templates` внешним ключом. Сессии по теме пишутся с `kind = 'theme'`, их сколько угодно в день, и на прогрессию и серию они не влияют — пункт темы не привязан к лестнице.
 
+**Почему комплексы живут в `templates`.**
+Комплекс (ADR-018) — это список пунктов с дозами, как день недели, только без дня недели: поэтому он переиспользует `template_items`, резолвер дня и карточку. Отличие — `kind = 'complex'`, `note` с назначением и то, что сборка сида запрещает в нём `follow_chain`: пункт комплекса не должен двигать лестницы. Сессии пишутся с `kind = 'complex'`.
+
+**Почему у пользователя нет бюджета минут.**
+Колонки `users.session_minutes`, `users.mini_reminders` и `templates.est_minutes` удалены миграцией 0010 (ADR-018): время тренировки не планируется, а напоминания о микро-блоках исчезли вместе с ними (ADR-017).
+
 **`training_mode`.**
 `daily` — программа дня с утренним напоминанием и вечерним пингом; `on_demand` — напоминаний о программе нет, тренировка начинается по запросу. Это не пауза: `/pause` выключает бота целиком и прощает дни серии, а режим выключает только будильник.
 
@@ -253,7 +257,7 @@ CREATE INDEX idx_sets_exercise ON session_sets(exercise_code);
 Кнопка «Через час» переносит утреннее напоминание: момент хранится в UTC, а отметка об отправке снимается из `reminders_log`, иначе дедупликация не дала бы прислать его второй раз. `paused_from` нужен потому, что серия должна знать, какие именно дни прощать: из одного `paused_until` диапазон не восстановить.
 
 **`template_items.block` и `follow_chain`.**
-`block` — роль пункта в дне: шея, основное движение, осанка, поддерживающее, мобилити, круг, прогулка. Он же задаёт очередь на вылет, когда день не влезает в бюджет минут (ADR-012), и позволяет показать шейный протокол одной строкой вместо семи. `follow_chain` помечает пункт, который берётся не из шаблона, а из текущей ступени пользователя: в понедельник это «тяга», в четверг «отжимания». Без явной пометки пришлось бы подменять любое упражнение с непустым `chain`, и свинг в пятницу превращался бы в good morning.
+`block` — роль пункта в дне: шея, основное движение, осанка, поддерживающее, мобилити, круг, прогулка. Шея и основное движение составляют «сокращённую версию» вечернего пинга (ADR-018), и блок позволяет показать шейный протокол одной строкой вместо семи. Обрезки дня по времени больше нет. `follow_chain` помечает пункт, который берётся не из шаблона, а из текущей ступени пользователя: в понедельник это «тяга», в четверг «отжимания». Без явной пометки пришлось бы подменять любое упражнение с непустым `chain`, и свинг в пятницу превращался бы в good morning.
 
 ## Миграции
 

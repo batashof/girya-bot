@@ -34,7 +34,8 @@ export function renderStats(options: {
     const neck = week.neckAverage === null ? '—' : week.neckAverage.toFixed(1);
     lines.push(
       `нед. ${week.isoWeek} · ${week.done}/7 · ${week.minutes} мин · шея ${neck}` +
-        (week.themeCount > 0 ? ` · по темам ${week.themeCount}` : ''),
+        (week.themeCount > 0 ? ` · по темам ${week.themeCount}` : '') +
+        (week.complexCount > 0 ? ` · комплексов ${week.complexCount}` : ''),
     );
   }
 
@@ -109,9 +110,12 @@ export function renderWeeklyReport(options: {
   if (week.themeCount > 0) {
     lines.push(`Тренировок по теме: ${week.themeCount}`);
   }
+  if (week.complexCount > 0) {
+    lines.push(`Комплексов: ${week.complexCount}`);
+  }
 
   if (options.nextWeekIsDeload) {
-    lines.push('', 'Следующая неделя — разгрузочная: все дни по 10 минут.');
+    lines.push('', 'Следующая неделя — разгрузочная: меньше подходов, уровни не меняются.');
   }
 
   return lines.join('\n');

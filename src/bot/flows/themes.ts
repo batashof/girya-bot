@@ -18,6 +18,7 @@ import { localMoment } from '../../domain/time';
 import type { Feedback, PlannedItem, Theme, User } from '../../domain/types';
 import { collapseCard, editCard, scaleKeyboard, sendExerciseCard, type CardRef } from '../card';
 import { showToday } from '../commands/today';
+import { complexButtons } from './complex';
 import { neckToday } from '../day';
 import { buttons, texts } from '../ui/texts';
 import { escapeHtml, renderCard, renderDone } from '../ui/workout';
@@ -121,15 +122,21 @@ async function showMenu(ctx: Context, deps: BotDeps): Promise<void> {
   if (user === null) {
     return;
   }
-  await ctx.reply(texts.train.menu(user.trainingMode), { reply_markup: menuKeyboard(user) });
+  await ctx.reply(texts.train.menu(user.trainingMode), {
+    reply_markup: await menuKeyboard(deps, user),
+  });
 }
 
-function menuKeyboard(user: User): InlineKeyboard {
-  return new InlineKeyboard()
+/** Программа дня и темы, комплексы по одному в строке, режим напоминаний последним. */
+async function menuKeyboard(deps: BotDeps, user: User): Promise<InlineKeyboard> {
+  const keyboard = new InlineKeyboard()
     .text(buttons.trainDay, 't:day')
     .text(buttons.trainTheme, 't:list')
-    .row()
-    .text(buttons.mode(user.trainingMode), 't:mode');
+    .row();
+  for (const complex of await complexButtons(deps)) {
+    keyboard.text(complex.text, complex.data).row();
+  }
+  return keyboard.text(buttons.mode(user.trainingMode), 't:mode');
 }
 
 async function toggleMode(ctx: Context, deps: BotDeps): Promise<void> {
@@ -140,7 +147,7 @@ async function toggleMode(ctx: Context, deps: BotDeps): Promise<void> {
   const mode = user.trainingMode === 'daily' ? 'on_demand' : 'daily';
   await updateUser(deps.db, user.telegramId, { training_mode: mode });
   await ctx.reply(texts.train.modeChanged(mode), {
-    reply_markup: menuKeyboard({ ...user, trainingMode: mode }),
+    reply_markup: await menuKeyboard(deps, { ...user, trainingMode: mode }),
   });
 }
 

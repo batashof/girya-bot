@@ -142,10 +142,10 @@ const TEMPLATE_COLUMNS = [
   'title',
   'weekday',
   'intensity',
-  'est_minutes',
   'optional',
   'kind',
   'group_code',
+  'note',
 ];
 
 lines.push('', '-- Шаблоны дней (docs/05-training-program.md)');
@@ -162,9 +162,9 @@ for (const template of templates.templates) {
       sql(template.title),
       num(template.weekday),
       sql(template.intensity),
-      num(template.est_minutes),
       num(template.optional ?? 0),
       sql('day'),
+      'NULL',
       'NULL',
     ].join(', ')})\n  ${onConflict('code', TEMPLATE_COLUMNS)};`,
   );
@@ -173,17 +173,19 @@ for (const template of templates.templates) {
   if (items[0]?.block !== 'neck') {
     fail(`${template.code}: шейный протокол должен быть первым пунктом дня (ADR-008)`);
   }
+  emitItems(template.code, items);
+}
+
+function emitItems(templateCode, items) {
   items.forEach((item, index) => {
-    checkExercise(item.exercise, `${template.code}, пункт ${index + 1}`);
+    checkExercise(item.exercise, `${templateCode}, пункт ${index + 1}`);
     const unit = exercises.find((exercise) => exercise.code === item.exercise)?.unit;
     if (item.holds !== undefined && unit !== 'seconds') {
-      fail(
-        `${template.code}, пункт ${index + 1}: holds бывает только у удержаний (unit = seconds)`,
-      );
+      fail(`${templateCode}, пункт ${index + 1}: holds бывает только у удержаний (unit = seconds)`);
     }
     lines.push(
       `INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, holds, rest_sec, load_hint, optional) VALUES (${[
-        sql(template.code),
+        sql(templateCode),
         num(index + 1),
         sql(item.exercise),
         sql(item.block),
@@ -217,12 +219,39 @@ for (const theme of templates.themes) {
       sql(theme.title),
       num(0),
       sql('light'),
-      num(0),
       num(1),
       sql('theme'),
       sql(theme.group),
+      'NULL',
     ].join(', ')})\n  ${onConflict('code', TEMPLATE_COLUMNS)};`,
   );
+}
+
+lines.push('', '-- Комплексы под одну проблему (ADR-018): фиксированный порядок и дозы');
+for (const complex of templates.complexes) {
+  requireFields(complex, ['code', 'title', 'note', 'items'], complex.code);
+  if (!complex.code.startsWith('C')) {
+    fail(`${complex.code}: код комплекса начинается с C — так он не спутается с днём и темой`);
+  }
+  for (const item of complex.items) {
+    // Комплекс не двигает лестницы (ADR-018), а пункт с follow_chain двигал бы.
+    if (item.follow_chain !== undefined || item.protocol !== undefined) {
+      fail(`${complex.code}: в комплексе нет follow_chain и протоколов — только упражнения`);
+    }
+  }
+  lines.push(
+    `INSERT INTO templates (${TEMPLATE_COLUMNS.join(', ')}) VALUES (${[
+      sql(complex.code),
+      sql(complex.title),
+      num(0),
+      sql('light'),
+      num(1),
+      sql('complex'),
+      'NULL',
+      sql(complex.note),
+    ].join(', ')})\n  ${onConflict('code', TEMPLATE_COLUMNS)};`,
+  );
+  emitItems(complex.code, complex.items);
 }
 
 // Что пропало из JSON — уходит из базы, но только если на него нет ни одной ссылки
@@ -230,6 +259,7 @@ for (const theme of templates.themes) {
 const templateCodes = [
   ...templates.templates.map((t) => t.code),
   ...templates.themes.map((theme) => theme.code),
+  ...templates.complexes.map((complex) => complex.code),
 ];
 lines.push(
   '',
@@ -249,7 +279,7 @@ lines.push(
 writeFileSync(OUTPUT, `${lines.join('\n')}\n`);
 console.log(
   `${OUTPUT}: ${exercises.length} упражнений, ${templates.templates.length} шаблонов дня, ` +
-    `${templates.themes.length} тем`,
+    `${templates.themes.length} тем, комплексов: ${templates.complexes.length}`,
 );
 
 function expandItems(items, protocols, templateCode) {

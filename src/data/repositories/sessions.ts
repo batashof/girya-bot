@@ -263,18 +263,37 @@ export async function startThemeSession(
   telegramId: number,
   session: { localDate: string; templateCode: string; weekInBlock: number },
 ): Promise<number> {
+  return startExtraSession(db, telegramId, 'theme', session);
+}
+
+/** Комплекс (ADR-018): как и тема, сколько угодно раз в день и мимо серии. */
+export async function startComplexSession(
+  db: D1Database,
+  telegramId: number,
+  session: { localDate: string; templateCode: string; weekInBlock: number },
+): Promise<number> {
+  return startExtraSession(db, telegramId, 'complex', session);
+}
+
+async function startExtraSession(
+  db: D1Database,
+  telegramId: number,
+  kind: 'theme' | 'complex',
+  session: { localDate: string; templateCode: string; weekInBlock: number },
+): Promise<number> {
   const row = await one<{ id: number }>(
     db,
     `INSERT INTO sessions (user_id, local_date, template_code, kind, week_in_block, status, started_at)
-          VALUES (?, ?, ?, 'theme', ?, 'in_progress', datetime('now'))
+          VALUES (?, ?, ?, ?, ?, 'in_progress', datetime('now'))
        RETURNING id`,
     telegramId,
     session.localDate,
     session.templateCode,
+    kind,
     session.weekInBlock,
   );
   if (row === null) {
-    throw new Error('Сессия по теме не создалась');
+    throw new Error(`Сессия ${kind} не создалась`);
   }
   return row.id;
 }

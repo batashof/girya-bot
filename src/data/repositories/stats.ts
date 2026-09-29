@@ -29,7 +29,7 @@ export async function loadSessionSummaries(
 
   return rows.map((row) => ({
     date: row.local_date,
-    kind: row.kind === 'mini' || row.kind === 'theme' ? row.kind : 'main',
+    kind: toKind(row.kind),
     status: row.status as SessionSummary['status'],
     minutes: row.minutes,
     neckScore: row.neck_score !== null && isNeckScore(row.neck_score) ? row.neck_score : null,
@@ -103,4 +103,9 @@ export async function exportRows(
       ORDER BY s.local_date, s.id, t.position, t.set_index`,
     telegramId,
   );
+}
+
+/** Незнакомый вид сессии — основная тренировка: так было до появления тем и комплексов. */
+function toKind(value: string): SessionSummary['kind'] {
+  return value === 'mini' || value === 'theme' || value === 'complex' ? value : 'main';
 }
