@@ -10,7 +10,6 @@ import type {
   PlannedItem,
   ProgressionState,
   TemplateItem,
-  Unit,
   UserProfile,
   Workout,
 } from './types';
@@ -56,10 +55,8 @@ const UNTIMED_BLOCKS = new Set(['walk']);
 const DELOAD_MINUTES = 10;
 const DELOAD_MAX_SETS = 2;
 
-/** Секунд на повтор в обычном темпе. Грубая, но одинаковая для всех оценка. */
-const SECONDS_PER_REP = 2;
-const SECONDS_PER_STEP = 0.6;
-const TEMPO_FACTOR: Record<string, number> = { normal: 1, slow: 1.6, pause: 1.3 };
+/** Пауза между удержаниями внутри подхода: перехватить дыхание и снова упереться. */
+export const BETWEEN_HOLDS_SEC = 5;
 
 /**
  * Номер недели в четырёхнедельном блоке: 1–3 рост, 4 — разгрузочная.
@@ -126,6 +123,8 @@ function resolveItem(
       return null;
     }
     const state = input.progression.get(item.followChain);
+    // Замена по инвентарю могла дать другое упражнение — темп ступени к нему не относится.
+    const ownStep = exercise.code === step.exerciseCode;
     return {
       position: item.position,
       block: item.block,
@@ -135,6 +134,9 @@ function resolveItem(
       sets,
       // Цель по повторам ведёт прогрессия, а не шаблон: шаблон задаёт только рамку.
       target: clamp(state?.currentReps ?? step.targetMin, step.targetMin, step.targetMax),
+      holds: exercise.unit === 'seconds' ? item.holds : 1,
+      repSec: (ownStep ? step.repSec : null) ?? exercise.repSec,
+      repNote: ownStep && step.repSec !== null ? step.repNote : exercise.repNote,
       unit: exercise.unit,
       tempo: step.tempo,
       weight: resolveWeight(step.loadHint ?? item.loadHint, input.user),
@@ -155,6 +157,9 @@ function resolveItem(
     variant: null,
     sets,
     target: item.targetMin,
+    holds: exercise.unit === 'seconds' ? item.holds : 1,
+    repSec: exercise.repSec,
+    repNote: exercise.repNote,
     unit: exercise.unit,
     tempo: 'normal',
     weight: resolveWeight(item.loadHint, input.user),
@@ -325,27 +330,45 @@ export function totalSeconds(items: PlannedItem[]): number {
 }
 
 /**
- * Оценка длительности пункта: работа плюс отдых между подходами.
- * Стороны одностороннего упражнения идут подряд, отдых между ними не считается —
- * иначе тяга одной рукой «съедала» бы половину дня в расчёте, но не на практике.
+ * Сколько делать в одном подходе — то, что карточка показывает человеку (ADR-017).
+ *
+ * Повтор всегда один и тот же объект: у движения — одно движение с известным темпом
+ * («~4 с: 1 с вверх, 3 с вниз»), у удержания — одно удержание («держи 30 с»). Отдельной
+ * «оценки времени на подход» больше нет: она спорила с заданием и с техникой.
+ */
+export interface Prescription {
+  /** Повторов (или удержаний, или шагов) в подходе. */
+  reps: number;
+  /** Секунд на один повтор; у удержания это и есть задание. */
+  repSec: number;
+  /** Из чего складывается повтор у движения: «1 с вверх, 2 с вниз». */
+  repNote: string | null;
+  kind: 'hold' | 'reps' | 'steps';
+}
+
+export function prescription(item: PlannedItem): Prescription {
+  switch (item.unit) {
+    case 'seconds':
+      return { reps: item.holds, repSec: item.target, repNote: null, kind: 'hold' };
+    case 'steps':
+      return { reps: item.target, repSec: item.repSec, repNote: item.repNote, kind: 'steps' };
+    case 'reps':
+      return { reps: item.target, repSec: item.repSec, repNote: item.repNote, kind: 'reps' };
+  }
+}
+
+/**
+ * Оценка длительности пункта: работа плюс отдых между подходами. Работа — ровно то, что
+ * написано в карточке: повторы × время повтора, у одностороннего — на обе стороны.
+ * Стороны идут подряд, отдых между ними не считается.
  */
 export function estimateSeconds(item: PlannedItem): number {
   const sides = item.unilateral ? 2 : 1;
-  const rounds = item.sets * sides;
-  const work = perSetSeconds(item.target, item.unit) * (TEMPO_FACTOR[item.tempo] ?? 1);
+  const { reps, repSec, kind } = prescription(item);
+  const pauses = kind === 'hold' ? Math.max(0, reps - 1) * BETWEEN_HOLDS_SEC : 0;
+  const work = sides * (reps * repSec + pauses);
   const rest = Math.max(0, item.sets - 1) * item.restSec;
-  return Math.round(rounds * work + rest);
-}
-
-function perSetSeconds(target: number, unit: Unit): number {
-  switch (unit) {
-    case 'reps':
-      return target * SECONDS_PER_REP;
-    case 'seconds':
-      return target;
-    case 'steps':
-      return target * SECONDS_PER_STEP;
-  }
+  return Math.round(item.sets * work + rest);
 }
 
 export function clamp(value: number, min: number, max: number): number {

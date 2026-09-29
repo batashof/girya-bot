@@ -42,7 +42,6 @@ async function notifyUser(db: D1Database, api: Api, user: User, now: Date): Prom
     moment,
     remindAt: user.remindAt,
     eveningPingAt: user.eveningPingAt,
-    miniReminders: user.miniReminders,
     dailyReminders: user.trainingMode === 'daily',
     pausedUntil: user.pausedUntil,
     snoozeUntil: user.snoozeUntil,
@@ -86,13 +85,6 @@ async function send(db: D1Database, api: Api, user: User, kind: ReminderKind): P
     }
     case 'weekly_report': {
       await api.sendMessage(user.telegramId, await weeklyReport(db, user));
-      return;
-    }
-    case 'mini_midday':
-    case 'mini_afternoon': {
-      await api.sendMessage(user.telegramId, texts.reminders.mini, {
-        reply_markup: new InlineKeyboard().text(buttons.miniNow, 'm:menu'),
-      });
       return;
     }
   }

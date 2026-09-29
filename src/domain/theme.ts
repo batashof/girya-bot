@@ -8,7 +8,6 @@ import type {
   PlannedItem,
   ProgressionState,
   Tempo,
-  TemplateItem,
   UserProfile,
 } from './types';
 
@@ -55,97 +54,75 @@ export interface DoseInput {
   user: UserProfile;
   chainSteps: ChainStep[];
   progression: Map<Chain, ProgressionState>;
-  /**
-   * Пункты шаблонов, откуда брать подходы и отдых: сначала дни недели, потом микро-блоки.
-   * Первое совпадение выигрывает — у дня доза полноценная, у микро-блока урезанная.
-   */
-  templateItems: TemplateItem[];
   adaptation: Adaptation;
 }
-
-/** Если упражнение не встречается ни в одном шаблоне и ни в одной лестнице. */
-const FALLBACK_SETS = 2;
-const FALLBACK_REST_SEC = 60;
-const FALLBACK_TARGET: Record<Exercise['unit'], number> = { reps: 10, seconds: 30, steps: 40 };
-/** Подходов у упражнения из лестницы, если в шаблонах дней оно не встречается. */
-const CHAIN_SETS = 3;
 
 /**
  * Сколько и как делать упражнение, выбранное вне программы дня.
  *
- * Источник дозы — то, что программа уже знает об этом упражнении:
- * 1. упражнение из лестницы — ступень, на которой пользователь сейчас (или ближайшая
- *    к ней ступень этого упражнения), с его текущей целью по повторам;
- * 2. упражнение из шаблона — подходы, цель и отдых из шаблона;
- * 3. иначе — скромное умолчание по единице измерения.
- *
- * Боль в шее режет объём так же, как в программе дня.
+ * У каждого упражнения своя доза в справочнике (`exercises.dose_*`, ADR-017): подходы,
+ * повторы (или удержания) и отдых. Если упражнение — ступень лестницы, повторы берутся
+ * из лестницы: там, где стоит пользователь, с его текущей целью. Боль в шее режет объём
+ * так же, как в программе дня.
  */
 export function themeDose(input: DoseInput): PlannedItem {
   const { exercise, user, adaptation } = input;
+  const { dose } = exercise;
   const fromChain = chainDose(input);
-  const fromTemplate = input.templateItems.find(
-    (item) => item.followChain === null && item.exerciseCode === exercise.code,
-  );
+  const hold = exercise.unit === 'seconds';
 
-  let sets: number;
-  let target: number;
-  let restSec: number;
-  let loadHint: LoadHint | null;
+  // У удержания доза — «N удержаний по repSec секунд», у движения — «N повторов».
+  let target = hold ? exercise.repSec : dose.reps;
+  let repSec = exercise.repSec;
+  let repNote = exercise.repNote;
   let tempo: Tempo = 'normal';
   let variant: string | null = null;
-  let block: PlannedItem['block'] = 'support';
+  let loadHint: LoadHint | null = defaultLoad(exercise);
 
   if (fromChain !== null) {
-    ({ sets, target, restSec, loadHint, tempo, variant } = fromChain);
-    block = 'main';
-  } else if (fromTemplate !== undefined) {
-    sets = fromTemplate.sets;
-    target = fromTemplate.targetMin;
-    restSec = fromTemplate.restSec;
-    loadHint = fromTemplate.loadHint;
-    block = fromTemplate.block;
-  } else {
-    sets = FALLBACK_SETS;
-    target = FALLBACK_TARGET[exercise.unit];
-    restSec = FALLBACK_REST_SEC;
-    loadHint = exercise.equipment === 'kettlebell' ? 'kb_main' : null;
+    target = fromChain.target;
+    tempo = fromChain.step.tempo;
+    variant = fromChain.step.variant;
+    loadHint = fromChain.step.loadHint ?? loadHint;
+    if (fromChain.step.repSec !== null) {
+      repSec = fromChain.step.repSec;
+      repNote = fromChain.step.repNote;
+    }
   }
 
   return {
     position: input.position,
-    block,
+    block: fromChain === null ? 'support' : 'main',
     exercise,
     // Пункт темы не принадлежит лестнице: иначе выбранное «по настроению» упражнение
     // двигало бы прогрессию программы дня (ADR-016).
     chain: null,
     variant,
-    sets: Math.max(1, Math.round(sets * adaptation.volumeFactor)),
+    sets: Math.max(1, Math.round(dose.sets * adaptation.volumeFactor)),
     target,
+    holds: hold ? dose.reps : 1,
+    repSec,
+    repNote,
     unit: exercise.unit,
     tempo,
     weight: resolveWeight(loadHint, user),
-    restSec,
+    restSec: dose.restSec,
     unilateral: exercise.unilateral,
   };
 }
 
-interface ChainDose {
-  sets: number;
-  target: number;
-  restSec: number;
-  loadHint: LoadHint | null;
-  tempo: Tempo;
-  variant: string | null;
+/** Гиревое упражнение вне лестницы делается с основной гирей пользователя. */
+function defaultLoad(exercise: Exercise): LoadHint | null {
+  return exercise.equipment === 'kettlebell' ? 'kb_main' : null;
 }
 
 /**
- * Доза из лестницы. Если пользователь стоит на ступени этого упражнения — берём её и его
- * текущую цель. Если он ниже — самую лёгкую ступень упражнения с нижней границей цели:
- * вариант сложнее текущего не должен начинаться с верхней. Если выше — самую трудную
- * ступень упражнения с верхней границей: он его уже перерос.
+ * Ступень лестницы для упражнения. Если пользователь стоит на ступени этого упражнения —
+ * берём её и его текущую цель. Если он ниже — самую лёгкую ступень упражнения с нижней
+ * границей цели. Если выше — самую трудную ступень упражнения с верхней границей: он его
+ * уже перерос.
  */
-function chainDose(input: DoseInput): ChainDose | null {
+function chainDose(input: DoseInput): { step: ChainStep; target: number } | null {
   const own = input.chainSteps
     .filter((step) => step.exerciseCode === input.exercise.code)
     .sort((left, right) => left.level - right.level);
@@ -155,32 +132,20 @@ function chainDose(input: DoseInput): ChainDose | null {
     return null;
   }
 
-  const chain = first.chain;
-  const state = input.progression.get(chain);
-  let step: ChainStep = first;
-  let target = first.targetMin;
-
+  const state = input.progression.get(first.chain);
   if (state !== undefined) {
     const current = own.find((candidate) => candidate.level === state.chainLevel);
     if (current !== undefined) {
-      step = current;
-      target = clamp(state.currentReps, current.targetMin, current.targetMax);
-    } else if (state.chainLevel > last.level) {
-      step = last;
-      target = last.targetMax;
+      return {
+        step: current,
+        target: clamp(state.currentReps, current.targetMin, current.targetMax),
+      };
+    }
+    if (state.chainLevel > last.level) {
+      return { step: last, target: last.targetMax };
     }
   }
-
-  // Подходы и отдых — как у пункта дня, который ведёт эту лестницу.
-  const dayItem = input.templateItems.find((item) => item.followChain === chain);
-  return {
-    sets: dayItem?.sets ?? CHAIN_SETS,
-    target,
-    restSec: dayItem?.restSec ?? FALLBACK_REST_SEC,
-    loadHint: step.loadHint ?? dayItem?.loadHint ?? null,
-    tempo: step.tempo,
-    variant: step.variant,
-  };
+  return { step: first, target: first.targetMin };
 }
 
 /** NK2 раньше NK10: сравнение по префиксу, потом по числу. */

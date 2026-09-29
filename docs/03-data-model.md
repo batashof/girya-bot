@@ -13,7 +13,7 @@ CREATE TABLE users (
   remind_at        TEXT NOT NULL DEFAULT '07:30',  -- HH:MM локального времени
   evening_ping_at  TEXT             DEFAULT '20:00',
   session_minutes  INTEGER NOT NULL DEFAULT 15,    -- бюджет времени: 10 | 15 | 20 | 25
-  mini_reminders   INTEGER NOT NULL DEFAULT 0,     -- напоминать про /mini днём
+  mini_reminders   INTEGER NOT NULL DEFAULT 0,     -- не используется с ADR-017 (микро-блоки убраны); колонка оставлена, SQLite её не удалит без пересборки таблицы
   height_cm        INTEGER,                        -- 190
   weight_kg        REAL,                           -- 73
   birth_year       INTEGER,                        -- 1996
@@ -52,7 +52,13 @@ CREATE TABLE exercises (
   mistakes    TEXT,                      -- типичные ошибки
   video_url   TEXT,
   neck_safe   INTEGER NOT NULL DEFAULT 1,-- можно ли делать в день боли в шее
-  swap_group  TEXT NOT NULL              -- чем заменяемо: упражнения одной swap_group взаимозаменяемы
+  swap_group  TEXT NOT NULL,             -- чем заменяемо: упражнения одной swap_group взаимозаменяемы
+  -- Доза «само по себе» — для тренировки по теме (ADR-017, миграция 0009).
+  dose_sets     INTEGER NOT NULL DEFAULT 3,
+  dose_reps     INTEGER NOT NULL DEFAULT 10, -- повторов, шагов или удержаний в подходе
+  dose_rest_sec INTEGER NOT NULL DEFAULT 45,
+  rep_sec       INTEGER NOT NULL DEFAULT 3,  -- секунд на повтор; у удержания — сколько держать
+  rep_note      TEXT                         -- из чего складывается повтор: «1 с вверх, 2 с вниз»
 );
 
 -- Лестницы прогрессии из 06-exercise-library.md.
@@ -69,6 +75,8 @@ CREATE TABLE chain_steps (
   requires      TEXT,                    -- bar | band | backpack — без чего ступень недоступна
   target_min    INTEGER NOT NULL,        -- стартовый диапазон повторов/секунд на ступени
   target_max    INTEGER NOT NULL,
+  rep_sec       INTEGER,                 -- своё время повтора у ступени с темпом или паузой; NULL — как у упражнения
+  rep_note      TEXT,
   PRIMARY KEY (chain, level)
 );
 
@@ -80,11 +88,11 @@ CREATE TABLE templates (
   intensity   TEXT NOT NULL,             -- heavy | medium | light | recovery
   est_minutes INTEGER NOT NULL,
   optional    INTEGER NOT NULL DEFAULT 0,-- суббота по желанию: пропуск не рвёт серию
-  kind        TEXT NOT NULL DEFAULT 'day', -- day | mini | theme
+  kind        TEXT NOT NULL DEFAULT 'day', -- day | theme (mini — только в истории до ADR-017)
   group_code  TEXT                        -- для kind = 'theme': какую группу exercises собирает тема
 );
 
--- «Один шаблон на день недели» — только для дней: у микро-блоков weekday = 0.
+-- «Один шаблон на день недели» — только для дней: у тем weekday = 0.
 CREATE UNIQUE INDEX idx_templates_weekday ON templates(weekday) WHERE kind = 'day';
 
 CREATE TABLE template_items (
@@ -96,6 +104,7 @@ CREATE TABLE template_items (
   sets          INTEGER NOT NULL,
   target_min    INTEGER NOT NULL,        -- нижняя граница диапазона повторов/секунд
   target_max    INTEGER NOT NULL,        -- верхняя граница
+  holds         INTEGER NOT NULL DEFAULT 1, -- удержаний в подходе; только для unit = 'seconds', где target — секунды одного удержания
   rest_sec      INTEGER NOT NULL DEFAULT 60,
   load_hint     TEXT,                    -- bodyweight | kb_light | kb_main | kb_heavy | backpack
   optional      INTEGER NOT NULL DEFAULT 0,
@@ -124,7 +133,7 @@ CREATE TABLE sessions (
   user_id       INTEGER NOT NULL REFERENCES users(telegram_id),
   local_date    TEXT NOT NULL,           -- YYYY-MM-DD
   template_code TEXT NOT NULL REFERENCES templates(code),
-  kind          TEXT NOT NULL DEFAULT 'main',  -- main | mini (микро-сессия по /mini) | theme (тренировка по теме)
+  kind          TEXT NOT NULL DEFAULT 'main',  -- main | theme (тренировка по теме) | mini (только история: микро-блоки убраны в ADR-017)
   week_in_block INTEGER NOT NULL,        -- 1..4, где 4 — разгрузка
   status        TEXT NOT NULL,           -- planned | in_progress | done | skipped
   neck_score    INTEGER,                 -- 0 нет боли … 3 сильно
@@ -134,7 +143,7 @@ CREATE TABLE sessions (
   note          TEXT
 );
 
--- Основная тренировка — одна в день. Микро-сессий (/mini) может быть сколько угодно.
+-- Основная тренировка — одна в день. Тренировок по теме может быть сколько угодно.
 CREATE UNIQUE INDEX idx_sessions_main_per_day
   ON sessions(user_id, local_date) WHERE kind = 'main';
 
@@ -220,7 +229,7 @@ CREATE INDEX idx_sets_exercise ON session_sets(exercise_code);
 Вес зафиксирован на 5 кг, поэтому нагрузка растёт сменой варианта: отжимания от стола → с пола → с паузой. Если хранить состояние по коду упражнения, при каждом переходе оно теряется. Цепочка (`push`, `row`, `squat`, `hinge`, `core`) — стабильная сущность, а конкретное упражнение и темп — её текущее состояние. Подробнее — [05-training-program.md](05-training-program.md).
 
 **Почему основная тренировка одна в день.**
-Частичный уникальный индекс по `kind = 'main'`: одна утренняя сессия формирует streak и прогрессию. Микро-сессии `/mini` пишутся в ту же таблицу с `kind = 'mini'`, но на прогрессию не влияют и в объём тренировок не входят — иначе три раза размяв шею за день, получишь ложное «выполнено».
+Частичный уникальный индекс по `kind = 'main'`: одна утренняя сессия формирует streak и прогрессию. Тренировки по теме пишутся в ту же таблицу с `kind = 'theme'`, но на прогрессию не влияют и в серию не входят — иначе три раза размяв шею за день, получишь ложное «выполнено». Старые сессии `kind = 'mini'` (до ADR-017) остаются в истории и ни в какие счётчики не входят.
 
 **`neck_safe`.**
 Флаг на упражнении, а не на группе: гиревой жим над головой в день острой боли в шее — плохая идея, а тяга в наклоне с опорой — нормальная. День с `neck_score >= 2` фильтрует набор по этому флагу.
@@ -231,10 +240,10 @@ CREATE INDEX idx_sets_exercise ON session_sets(exercise_code);
 **Почему лестница — отдельная таблица `chain_steps`, а не порядок в `exercises`.**
 Ступень лестницы не всегда равна упражнению. В тяге уровень 1 и уровень 2 — это один и тот же `RW1`, разница только в темпе; уровни 4–6 — один и тот же `RW7` с разным положением ног. Если хранить лестницу как `exercises.chain_level`, пришлось бы плодить упражнения-двойники ради темпа и угла. `chain_steps` описывает ступень как «упражнение + вариант + темп + вес», а `exercises.chain` остаётся пометкой принадлежности к лестнице.
 
-**Почему микро-блоки живут в `templates`.**
-`/mini` — это те же три минуты по списку упражнений, что и день недели, только короче. Заводить ради трёх блоков отдельную пару таблиц значит дублировать и загрузку, и отрисовку. Микро-блоки помечены `kind = 'mini'` и `weekday = 0`, а уникальность «один шаблон на день недели» стала частичной. Сессии по ним пишутся с `kind = 'mini'` и на прогрессию и серию не влияют (ADR-013).
+**Почему доза хранится в повторах и секундах на повтор (ADR-017).**
+Задание на подход — две величины: сколько повторов (`dose_reps`, `template_items.target_*`, у лестниц — `progression.current_reps`) и сколько секунд на повтор (`rep_sec`). У удержания повтор — одно удержание: `target` в шаблоне — секунды одного удержания, `holds` — сколько их в подходе. Время подхода и дня считается из этих двух чисел, а не из отдельной «оценки»: раньше оценка, доза и цифры в `cues` друг другу противоречили.
 
-**Почему темы тоже живут в `templates`.**
+**Почему темы живут в `templates`.**
 Тренировка по теме (ADR-016) — это группа упражнений справочника, а не список пунктов, поэтому у строки с `kind = 'theme'` пунктов нет, а есть `group_code`. Шаблон ей нужен как якорь: сессия ссылается на `templates` внешним ключом. Сессии по теме пишутся с `kind = 'theme'`, их сколько угодно в день, и на прогрессию и серию они не влияют — пункт темы не привязан к лестнице.
 
 **`training_mode`.**

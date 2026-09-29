@@ -7,7 +7,7 @@ import {
   recordSets,
   startThemeSession,
 } from '../../data/repositories/sessions';
-import { loadDoseItems, loadThemes } from '../../data/repositories/templates';
+import { loadThemes } from '../../data/repositories/templates';
 import { getUser, updateUser } from '../../data/repositories/users';
 import { clearUiState, getUiState, setUiState } from '../../data/repositories/ui-state';
 import type { Adaptation } from '../../domain/adaptation';
@@ -312,25 +312,16 @@ async function plan(
   position: number,
   adaptation: Adaptation,
 ): Promise<PlannedItem | null> {
-  const [exercises, chainSteps, progression, templateItems] = await Promise.all([
+  const [exercises, chainSteps, progression] = await Promise.all([
     loadExercises(deps.db),
     loadChainSteps(deps.db),
     loadProgression(deps.db, user.telegramId),
-    loadDoseItems(deps.db),
   ]);
   const exercise = exercises.get(code);
   if (exercise === undefined) {
     return null;
   }
-  return themeDose({
-    exercise,
-    position,
-    user,
-    chainSteps,
-    progression,
-    templateItems,
-    adaptation,
-  });
+  return themeDose({ exercise, position, user, chainSteps, progression, adaptation });
 }
 
 function stepOf(item: PlannedItem): WorkoutStep {

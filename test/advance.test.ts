@@ -7,7 +7,7 @@ import { defaultUser, loadChainSteps } from './fixtures';
 const chainSteps = loadChainSteps();
 const user = defaultUser();
 
-/** Отжимания: ступени 1–7, диапазон 8–15 повторов на каждой. */
+/** Отжимания, ступень «с колен»: 12–20 повторов, как и у соседней «с пола». */
 function pushState(overrides: Partial<ProgressionState> = {}): ProgressionState {
   return {
     chain: 'push',
@@ -15,7 +15,7 @@ function pushState(overrides: Partial<ProgressionState> = {}): ProgressionState 
     chainLevel: 3,
     tempo: 'normal',
     weight: null,
-    currentReps: 8,
+    currentReps: 12,
     hardStreak: 0,
     easyStreak: 0,
     ...overrides,
@@ -34,60 +34,60 @@ describe('advance', () => {
     // Правило: две тренировки подряд. Одна — это ещё не тенденция.
     const after = advance(pushState(), done, chainSteps, user);
 
-    expect(after.currentReps).toBe(8);
+    expect(after.currentReps).toBe(12);
     expect(after.easyStreak).toBe(1);
   });
 
   it('добавляет повтор после двух удачных тренировок подряд', () => {
     const after = run(pushState(), [done, done]);
 
-    expect(after.currentReps).toBe(9);
+    expect(after.currentReps).toBe(13);
     expect(after.chainLevel).toBe(3);
     expect(after.easyStreak).toBe(0);
   });
 
   it('растит повторы до верхней границы и только потом меняет ступень', () => {
     // ADR-011: сначала повторы, и лишь на верхней границе — следующий вариант.
-    const atTop = pushState({ currentReps: 15 });
+    const atTop = pushState({ currentReps: 20 });
     const after = run(atTop, [done, done]);
 
     expect(after.chainLevel).toBe(4);
-    expect(after.currentReps).toBe(8);
+    expect(after.currentReps).toBe(12);
   });
 
   it('делает один шаг за раз, даже если тренировок подряд было четыре', () => {
-    const after = run(pushState({ currentReps: 15 }), [done, done, done, done]);
+    const after = run(pushState({ currentReps: 20 }), [done, done, done, done]);
 
     expect(after.chainLevel).toBe(4);
-    expect(after.currentReps).toBe(9);
+    expect(after.currentReps).toBe(13);
   });
 
   it('откатывается после двух «тяжело» подряд', () => {
-    const after = run(pushState({ currentReps: 12 }), [hard, hard]);
+    const after = run(pushState({ currentReps: 15 }), [hard, hard]);
 
-    expect(after.currentReps).toBe(11);
+    expect(after.currentReps).toBe(14);
     expect(after.hardStreak).toBe(0);
   });
 
   it('на нижней границе откат уходит на ступень ниже, к верхней границе', () => {
-    const after = run(pushState({ chainLevel: 4, currentReps: 8 }), [hard, hard]);
+    const after = run(pushState({ chainLevel: 4, currentReps: 12 }), [hard, hard]);
 
     expect(after.chainLevel).toBe(3);
-    expect(after.currentReps).toBe(15);
+    expect(after.currentReps).toBe(20);
   });
 
   it('сбрасывает серию удач, если тренировка не доделана', () => {
     const missed: ChainOutcome = { chain: 'push', completed: false, feedback: 'ok' };
     const after = run(pushState(), [done, missed, done]);
 
-    expect(after.currentReps).toBe(8);
+    expect(after.currentReps).toBe(12);
     expect(after.easyStreak).toBe(1);
   });
 
   it('одна удачная тренировка гасит накопленное «тяжело»', () => {
-    const after = run(pushState({ currentReps: 12 }), [hard, done, hard]);
+    const after = run(pushState({ currentReps: 15 }), [hard, done, hard]);
 
-    expect(after.currentReps).toBe(12);
+    expect(after.currentReps).toBe(15);
     expect(after.hardStreak).toBe(1);
   });
 

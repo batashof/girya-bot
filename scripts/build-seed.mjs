@@ -35,9 +35,30 @@ lines.push('-- Упражнения (docs/06-exercise-library.md)');
 for (const exercise of exercises) {
   requireFields(
     exercise,
-    ['code', 'name', 'group_code', 'pattern', 'equipment', 'unit', 'cues', 'swap_group'],
+    [
+      'code',
+      'name',
+      'group_code',
+      'pattern',
+      'equipment',
+      'unit',
+      'cues',
+      'swap_group',
+      'dose_sets',
+      'dose_reps',
+      'dose_rest_sec',
+      'rep_sec',
+    ],
     exercise.code,
   );
+  // Доза и время повтора пишутся в карточке, техника — только порядок действий. Цифра
+  // времени или количества в cues рано или поздно разойдётся с заданием (ADR-017).
+  const dosed = /\d+\s*(секунд|сек\b|с\b|раз\b|повтор|сч[её]т|минут|мин\b|шаг)/i.exec(
+    exercise.cues,
+  );
+  if (dosed !== null) {
+    fail(`${exercise.code}: в технике доза «${dosed[0]}» — её пишет карточка, из cues убрать`);
+  }
   if ((exercise.chain === null) !== (exercise.chain_level === null)) {
     fail(`${exercise.code}: chain и chain_level задаются вместе`);
   }
@@ -56,6 +77,11 @@ for (const exercise of exercises) {
     'video_url',
     'neck_safe',
     'swap_group',
+    'dose_sets',
+    'dose_reps',
+    'dose_rest_sec',
+    'rep_sec',
+    'rep_note',
   ];
 
   lines.push(
@@ -74,6 +100,11 @@ for (const exercise of exercises) {
       sql(exercise.video_url ?? null),
       num(exercise.neck_safe ?? 1),
       sql(exercise.swap_group),
+      num(exercise.dose_sets),
+      num(exercise.dose_reps),
+      num(exercise.dose_rest_sec),
+      num(exercise.rep_sec),
+      sql(exercise.rep_note ?? null),
     ].join(', ')})\n  ${onConflict('code', EXERCISE_COLUMNS)};`,
   );
 }
@@ -89,7 +120,7 @@ for (const [chain, steps] of Object.entries(chains)) {
     }
     checkExercise(step.exercise, `лестница ${chain}, ступень ${step.level}`);
     lines.push(
-      `INSERT INTO chain_steps (chain, level, exercise_code, variant, tempo, load_hint, requires, target_min, target_max) VALUES (${[
+      `INSERT INTO chain_steps (chain, level, exercise_code, variant, tempo, load_hint, requires, target_min, target_max, rep_sec, rep_note) VALUES (${[
         sql(chain),
         num(step.level),
         sql(step.exercise),
@@ -99,6 +130,8 @@ for (const [chain, steps] of Object.entries(chains)) {
         sql(step.requires ?? null),
         num(step.target_min),
         num(step.target_max),
+        num(step.rep_sec ?? null),
+        sql(step.rep_note ?? null),
       ].join(', ')});`,
     );
   });
@@ -142,8 +175,14 @@ for (const template of templates.templates) {
   }
   items.forEach((item, index) => {
     checkExercise(item.exercise, `${template.code}, пункт ${index + 1}`);
+    const unit = exercises.find((exercise) => exercise.code === item.exercise)?.unit;
+    if (item.holds !== undefined && unit !== 'seconds') {
+      fail(
+        `${template.code}, пункт ${index + 1}: holds бывает только у удержаний (unit = seconds)`,
+      );
+    }
     lines.push(
-      `INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES (${[
+      `INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, holds, rest_sec, load_hint, optional) VALUES (${[
         sql(template.code),
         num(index + 1),
         sql(item.exercise),
@@ -152,6 +191,7 @@ for (const template of templates.templates) {
         num(item.sets),
         num(item.target_min),
         num(item.target_max),
+        num(item.holds ?? 1),
         num(item.rest_sec ?? 60),
         sql(item.load_hint ?? null),
         num(item.optional ?? 0),
@@ -162,40 +202,6 @@ for (const template of templates.templates) {
 
 if (weekdays.size !== 7) {
   fail(`шаблоны покрывают ${weekdays.size} дней недели из 7`);
-}
-
-lines.push('', '-- Микро-блоки /mini (docs/05-training-program.md, ADR-013)');
-for (const block of templates.mini) {
-  lines.push(
-    `INSERT INTO templates (${TEMPLATE_COLUMNS.join(', ')}) VALUES (${[
-      sql(block.code),
-      sql(block.title),
-      num(0),
-      sql('light'),
-      num(block.est_minutes),
-      num(1),
-      sql('mini'),
-      'NULL',
-    ].join(', ')})\n  ${onConflict('code', TEMPLATE_COLUMNS)};`,
-  );
-  block.items.forEach((item, index) => {
-    checkExercise(item.exercise, `микро-блок ${block.code}, пункт ${index + 1}`);
-    lines.push(
-      `INSERT INTO template_items (template_code, position, exercise_code, block, follow_chain, sets, target_min, target_max, rest_sec, load_hint, optional) VALUES (${[
-        sql(block.code),
-        num(index + 1),
-        sql(item.exercise),
-        sql(item.block),
-        'NULL',
-        num(item.sets),
-        num(item.target_min),
-        num(item.target_max),
-        num(item.rest_sec ?? 30),
-        'NULL',
-        num(0),
-      ].join(', ')});`,
-    );
-  });
 }
 
 lines.push('', '-- Темы тренировки по запросу (ADR-016): без пунктов, состав — по group_code');
@@ -223,7 +229,6 @@ for (const theme of templates.themes) {
 // из логов. Иначе строка остаётся мусором в справочнике: это дешевле, чем упавший сид.
 const templateCodes = [
   ...templates.templates.map((t) => t.code),
-  ...templates.mini.map((b) => b.code),
   ...templates.themes.map((theme) => theme.code),
 ];
 lines.push(
@@ -244,7 +249,7 @@ lines.push(
 writeFileSync(OUTPUT, `${lines.join('\n')}\n`);
 console.log(
   `${OUTPUT}: ${exercises.length} упражнений, ${templates.templates.length} шаблонов дня, ` +
-    `${templates.mini.length} микро-блока, ${templates.themes.length} тем`,
+    `${templates.themes.length} тем`,
 );
 
 function expandItems(items, protocols, templateCode) {

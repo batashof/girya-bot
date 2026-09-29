@@ -6,40 +6,45 @@
         "exercise": "NK1",
         "block": "neck",
         "sets": 1,
-        "target_min": 10,
-        "target_max": 10,
-        "rest_sec": 15
+        "target_min": 30,
+        "target_max": 30,
+        "holds": 1,
+        "rest_sec": 10
       },
       {
         "exercise": "NK2",
         "block": "neck",
         "sets": 1,
-        "target_min": 10,
-        "target_max": 10,
+        "target_min": 20,
+        "target_max": 20,
+        "holds": 1,
         "rest_sec": 5
       },
       {
         "exercise": "NK3",
         "block": "neck",
         "sets": 1,
-        "target_min": 10,
-        "target_max": 10,
+        "target_min": 20,
+        "target_max": 20,
+        "holds": 1,
         "rest_sec": 5
       },
       {
         "exercise": "NK4",
         "block": "neck",
         "sets": 1,
-        "target_min": 10,
-        "target_max": 10,
+        "target_min": 20,
+        "target_max": 20,
+        "holds": 1,
         "rest_sec": 5
       },
       {
         "exercise": "NK5",
         "block": "neck",
         "sets": 1,
-        "target_min": 10,
-        "target_max": 10,
+        "target_min": 20,
+        "target_max": 20,
+        "holds": 1,
         "rest_sec": 5
       },
       {
@@ -48,6 +53,7 @@
         "sets": 1,
         "target_min": 30,
         "target_max": 30,
+        "holds": 1,
         "rest_sec": 0
       },
       {
@@ -56,6 +62,7 @@
         "sets": 1,
         "target_min": 30,
         "target_max": 30,
+        "holds": 1,
         "rest_sec": 0
       }
     ],
@@ -64,56 +71,63 @@
         "exercise": "NK1",
         "block": "neck",
         "sets": 1,
-        "target_min": 10,
-        "target_max": 10,
-        "rest_sec": 15
+        "target_min": 30,
+        "target_max": 30,
+        "holds": 2,
+        "rest_sec": 10
       },
       {
         "exercise": "NK2",
         "block": "neck",
-        "sets": 2,
-        "target_min": 10,
-        "target_max": 10,
-        "rest_sec": 5
+        "sets": 1,
+        "target_min": 20,
+        "target_max": 20,
+        "holds": 2,
+        "rest_sec": 10
       },
       {
         "exercise": "NK3",
         "block": "neck",
-        "sets": 2,
-        "target_min": 10,
-        "target_max": 10,
-        "rest_sec": 5
+        "sets": 1,
+        "target_min": 20,
+        "target_max": 20,
+        "holds": 2,
+        "rest_sec": 10
       },
       {
         "exercise": "NK4",
         "block": "neck",
-        "sets": 2,
-        "target_min": 10,
-        "target_max": 10,
-        "rest_sec": 5
+        "sets": 1,
+        "target_min": 20,
+        "target_max": 20,
+        "holds": 2,
+        "rest_sec": 10
       },
       {
         "exercise": "NK5",
         "block": "neck",
-        "sets": 2,
-        "target_min": 10,
-        "target_max": 10,
-        "rest_sec": 5
+        "sets": 1,
+        "target_min": 20,
+        "target_max": 20,
+        "holds": 2,
+        "rest_sec": 10
       },
       {
         "exercise": "NK6",
         "block": "neck",
         "sets": 1,
-        "target_min": 30,
-        "target_max": 30,
+        "target_min": 45,
+        "target_max": 45,
+        "holds": 1,
         "rest_sec": 0
       },
       {
         "exercise": "NK7",
         "block": "neck",
         "sets": 1,
-        "target_min": 30,
-        "target_max": 30,
+        "target_min": 45,
+        "target_max": 45,
+        "holds": 1,
         "rest_sec": 0
       }
     ]
@@ -135,53 +149,45 @@
           "block": "main",
           "follow_chain": "row",
           "sets": 3,
-          "target_min": 12,
-          "target_max": 15,
-          "rest_sec": 60,
+          "target_min": 15,
+          "target_max": 20,
+          "rest_sec": 30,
           "load_hint": "kb_main"
         },
         {
           "exercise": "SC1",
           "block": "posture",
-          "sets": 2,
-          "target_min": 10,
-          "target_max": 10,
-          "rest_sec": 20,
+          "sets": 1,
+          "target_min": 12,
+          "target_max": 12,
+          "rest_sec": 0,
           "load_hint": "bodyweight"
         },
         {
           "exercise": "SC2",
           "block": "posture",
-          "sets": 2,
-          "target_min": 10,
-          "target_max": 10,
-          "rest_sec": 20,
+          "sets": 1,
+          "target_min": 12,
+          "target_max": 12,
+          "rest_sec": 0,
           "load_hint": "bodyweight"
         },
         {
           "exercise": "SC3",
           "block": "posture",
-          "sets": 2,
-          "target_min": 10,
-          "target_max": 10,
-          "rest_sec": 20,
+          "sets": 1,
+          "target_min": 12,
+          "target_max": 12,
+          "rest_sec": 0,
           "load_hint": "bodyweight"
-        },
-        {
-          "exercise": "CR3",
-          "block": "support",
-          "sets": 3,
-          "target_min": 40,
-          "target_max": 40,
-          "rest_sec": 45,
-          "load_hint": "kb_main"
         },
         {
           "exercise": "MB4",
           "block": "mobility",
-          "sets": 2,
-          "target_min": 30,
-          "target_max": 30,
+          "sets": 1,
+          "target_min": 45,
+          "target_max": 45,
+          "holds": 1,
           "rest_sec": 0
         }
       ]
@@ -202,36 +208,28 @@
           "block": "main",
           "follow_chain": "squat",
           "sets": 3,
-          "target_min": 12,
-          "target_max": 20,
-          "rest_sec": 60,
+          "target_min": 20,
+          "target_max": 30,
+          "rest_sec": 30,
           "load_hint": "bodyweight"
         },
         {
           "exercise": "LG2",
           "block": "support",
-          "sets": 3,
-          "target_min": 8,
-          "target_max": 12,
-          "rest_sec": 60,
+          "sets": 2,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 15,
           "load_hint": "bodyweight"
         },
         {
           "exercise": "PC8",
           "block": "posture",
-          "sets": 3,
-          "target_min": 10,
+          "sets": 1,
+          "target_min": 15,
           "target_max": 15,
-          "rest_sec": 45,
+          "rest_sec": 0,
           "load_hint": "bodyweight"
-        },
-        {
-          "exercise": "MB7",
-          "block": "mobility",
-          "sets": 2,
-          "target_min": 30,
-          "target_max": 30,
-          "rest_sec": 0
         }
       ]
     },
@@ -240,7 +238,7 @@
       "title": "Шея и грудной отдел",
       "weekday": 3,
       "intensity": "light",
-      "est_minutes": 12,
+      "est_minutes": 14,
       "optional": 0,
       "items": [
         {
@@ -249,50 +247,36 @@
         {
           "exercise": "NK8",
           "block": "main",
-          "sets": 3,
-          "target_min": 8,
-          "target_max": 8,
-          "rest_sec": 30
+          "sets": 1,
+          "target_min": 30,
+          "target_max": 30,
+          "holds": 3,
+          "rest_sec": 0
         },
         {
           "exercise": "NK9",
           "block": "main",
-          "sets": 3,
-          "target_min": 15,
-          "target_max": 15,
-          "rest_sec": 30
+          "sets": 1,
+          "target_min": 30,
+          "target_max": 30,
+          "holds": 3,
+          "rest_sec": 0
         },
         {
           "exercise": "SC6",
           "block": "posture",
-          "sets": 3,
-          "target_min": 5,
-          "target_max": 5,
-          "rest_sec": 30,
+          "sets": 1,
+          "target_min": 10,
+          "target_max": 10,
+          "rest_sec": 0,
           "load_hint": "kb_main"
         },
         {
           "exercise": "SC4",
           "block": "posture",
-          "sets": 3,
-          "target_min": 10,
-          "target_max": 10,
-          "rest_sec": 30
-        },
-        {
-          "exercise": "MB1",
-          "block": "mobility",
           "sets": 1,
-          "target_min": 10,
-          "target_max": 10,
-          "rest_sec": 0
-        },
-        {
-          "exercise": "MB2",
-          "block": "mobility",
-          "sets": 2,
-          "target_min": 8,
-          "target_max": 8,
+          "target_min": 12,
+          "target_max": 12,
           "rest_sec": 0
         }
       ]
@@ -313,35 +297,36 @@
           "block": "main",
           "follow_chain": "push",
           "sets": 3,
-          "target_min": 8,
-          "target_max": 15,
-          "rest_sec": 60,
+          "target_min": 15,
+          "target_max": 20,
+          "rest_sec": 45,
           "load_hint": "bodyweight"
         },
         {
           "exercise": "PR5",
           "block": "posture",
-          "sets": 3,
-          "target_min": 12,
+          "sets": 1,
+          "target_min": 15,
           "target_max": 15,
-          "rest_sec": 45,
+          "rest_sec": 0,
           "load_hint": "kb_main"
         },
         {
           "exercise": "SC9",
           "block": "support",
-          "sets": 3,
-          "target_min": 12,
+          "sets": 2,
+          "target_min": 15,
           "target_max": 15,
-          "rest_sec": 45,
+          "rest_sec": 20,
           "load_hint": "kb_main"
         },
         {
           "exercise": "MB6",
           "block": "mobility",
-          "sets": 2,
-          "target_min": 8,
-          "target_max": 8,
+          "sets": 1,
+          "target_min": 30,
+          "target_max": 30,
+          "holds": 1,
           "rest_sec": 0
         }
       ]
@@ -362,27 +347,27 @@
           "block": "main",
           "follow_chain": "hinge",
           "sets": 3,
-          "target_min": 10,
-          "target_max": 12,
-          "rest_sec": 60,
+          "target_min": 12,
+          "target_max": 15,
+          "rest_sec": 30,
           "load_hint": "kb_main"
         },
         {
           "exercise": "PC3",
           "block": "support",
-          "sets": 4,
-          "target_min": 20,
-          "target_max": 25,
-          "rest_sec": 60,
+          "sets": 2,
+          "target_min": 30,
+          "target_max": 30,
+          "rest_sec": 30,
           "load_hint": "kb_main"
         },
         {
           "exercise": "PC6",
           "block": "posture",
-          "sets": 3,
-          "target_min": 10,
-          "target_max": 12,
-          "rest_sec": 45,
+          "sets": 1,
+          "target_min": 15,
+          "target_max": 15,
+          "rest_sec": 0,
           "load_hint": "bodyweight"
         },
         {
@@ -409,43 +394,43 @@
         {
           "exercise": "CR5",
           "block": "main",
-          "sets": 5,
-          "target_min": 1,
-          "target_max": 1,
-          "rest_sec": 60,
+          "sets": 2,
+          "target_min": 2,
+          "target_max": 2,
+          "rest_sec": 30,
           "load_hint": "kb_main"
         },
         {
           "exercise": "PC3",
           "block": "circuit",
-          "sets": 3,
-          "target_min": 20,
-          "target_max": 20,
+          "sets": 2,
+          "target_min": 25,
+          "target_max": 25,
           "rest_sec": 0,
           "load_hint": "kb_main"
         },
         {
           "exercise": "PR3",
           "block": "circuit",
-          "sets": 3,
-          "target_min": 10,
-          "target_max": 10,
-          "rest_sec": 0,
-          "load_hint": "bodyweight"
-        },
-        {
-          "exercise": "LG5",
-          "block": "circuit",
-          "sets": 3,
+          "sets": 2,
           "target_min": 15,
           "target_max": 15,
           "rest_sec": 0,
           "load_hint": "bodyweight"
         },
         {
+          "exercise": "LG5",
+          "block": "circuit",
+          "sets": 2,
+          "target_min": 20,
+          "target_max": 20,
+          "rest_sec": 0,
+          "load_hint": "bodyweight"
+        },
+        {
           "exercise": "CR3",
           "block": "circuit",
-          "sets": 3,
+          "sets": 2,
           "target_min": 40,
           "target_max": 40,
           "rest_sec": 60,
@@ -455,32 +440,17 @@
           "exercise": "MB4",
           "block": "mobility",
           "sets": 1,
-          "target_min": 30,
-          "target_max": 30,
+          "target_min": 45,
+          "target_max": 45,
+          "holds": 1,
           "rest_sec": 0
         },
         {
           "exercise": "MB5",
           "block": "mobility",
           "sets": 1,
-          "target_min": 5,
-          "target_max": 5,
-          "rest_sec": 0
-        },
-        {
-          "exercise": "NK6",
-          "block": "mobility",
-          "sets": 1,
-          "target_min": 30,
-          "target_max": 30,
-          "rest_sec": 0
-        },
-        {
-          "exercise": "NK7",
-          "block": "mobility",
-          "sets": 1,
-          "target_min": 30,
-          "target_max": 30,
+          "target_min": 6,
+          "target_max": 6,
           "rest_sec": 0
         }
       ]
@@ -490,7 +460,7 @@
       "title": "Восстановление",
       "weekday": 7,
       "intensity": "recovery",
-      "est_minutes": 10,
+      "est_minutes": 15,
       "optional": 0,
       "items": [
         {
@@ -500,40 +470,33 @@
           "exercise": "MB1",
           "block": "mobility",
           "sets": 1,
-          "target_min": 10,
-          "target_max": 10,
+          "target_min": 12,
+          "target_max": 12,
           "rest_sec": 0
         },
         {
           "exercise": "MB2",
           "block": "mobility",
-          "sets": 2,
-          "target_min": 8,
-          "target_max": 8,
+          "sets": 1,
+          "target_min": 10,
+          "target_max": 10,
           "rest_sec": 0
         },
         {
           "exercise": "MB4",
           "block": "mobility",
-          "sets": 2,
-          "target_min": 30,
-          "target_max": 30,
-          "rest_sec": 0
-        },
-        {
-          "exercise": "MB5",
-          "block": "mobility",
-          "sets": 2,
-          "target_min": 5,
-          "target_max": 5,
+          "sets": 1,
+          "target_min": 45,
+          "target_max": 45,
+          "holds": 1,
           "rest_sec": 0
         },
         {
           "exercise": "NK10",
           "block": "mobility",
           "sets": 1,
-          "target_min": 8,
-          "target_max": 8,
+          "target_min": 10,
+          "target_max": 10,
           "rest_sec": 0
         },
         {
@@ -542,86 +505,7 @@
           "sets": 1,
           "target_min": 1800,
           "target_max": 1800,
-          "rest_sec": 0
-        }
-      ]
-    }
-  ],
-  "_comment_mini": "Микро-блоки /mini из docs/05-training-program.md: три минуты, без переодевания. Пишутся в sessions с kind = 'mini' и на прогрессию не влияют (ADR-013).",
-  "mini": [
-    {
-      "code": "M-NECK",
-      "title": "Шея",
-      "est_minutes": 3,
-      "items": [
-        {
-          "exercise": "NK1",
-          "block": "neck",
-          "sets": 1,
-          "target_min": 10,
-          "target_max": 10,
-          "rest_sec": 10
-        },
-        {
-          "exercise": "NK6",
-          "block": "neck",
-          "sets": 1,
-          "target_min": 30,
-          "target_max": 30,
-          "rest_sec": 0
-        },
-        {
-          "exercise": "NK7",
-          "block": "neck",
-          "sets": 1,
-          "target_min": 30,
-          "target_max": 30,
-          "rest_sec": 0
-        }
-      ]
-    },
-    {
-      "code": "M-POSTURE",
-      "title": "Осанка",
-      "est_minutes": 3,
-      "items": [
-        {
-          "exercise": "SC4",
-          "block": "posture",
-          "sets": 1,
-          "target_min": 10,
-          "target_max": 10,
-          "rest_sec": 10
-        },
-        {
-          "exercise": "MB4",
-          "block": "mobility",
-          "sets": 1,
-          "target_min": 30,
-          "target_max": 30,
-          "rest_sec": 0
-        }
-      ]
-    },
-    {
-      "code": "M-HIPS",
-      "title": "Таз",
-      "est_minutes": 3,
-      "items": [
-        {
-          "exercise": "LG5",
-          "block": "support",
-          "sets": 1,
-          "target_min": 10,
-          "target_max": 10,
-          "rest_sec": 10
-        },
-        {
-          "exercise": "MB7",
-          "block": "mobility",
-          "sets": 1,
-          "target_min": 30,
-          "target_max": 30,
+          "holds": 1,
           "rest_sec": 0
         }
       ]

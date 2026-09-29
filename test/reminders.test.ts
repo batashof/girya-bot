@@ -7,7 +7,6 @@ function input(overrides: Partial<ReminderInput> = {}): ReminderInput {
     moment: { date: '2026-08-12', time: '07:30', weekday: 3 as Weekday },
     remindAt: '07:30',
     eveningPingAt: '20:00',
-    miniReminders: false,
     dailyReminders: true,
     pausedUntil: null,
     snoozeUntil: null,
@@ -52,15 +51,11 @@ describe('dueReminders', () => {
     expect(dueReminders(input({ dailyReminders: false, moment: evening }))).toEqual([]);
   });
 
-  it('в режиме «по запросу» недельный отчёт и микро-блоки остаются', () => {
+  it('в режиме «по запросу» недельный отчёт остаётся', () => {
     const sunday = { date: '2026-08-16', time: '20:00', weekday: 7 as Weekday };
     expect(dueReminders(input({ dailyReminders: false, moment: sunday }))).toEqual([
       'weekly_report',
     ]);
-    const midday = { date: '2026-08-12', time: '12:00', weekday: 3 as Weekday };
-    expect(
-      dueReminders(input({ dailyReminders: false, miniReminders: true, moment: midday })),
-    ).toEqual(['mini_midday']);
   });
 
   it('снова напоминает после паузы', () => {
@@ -116,28 +111,9 @@ describe('dueReminders', () => {
     expect(dueReminders(wednesday)).toEqual([]);
   });
 
-  it('напоминает про микро-блоки только в рабочие дни и только если включено', () => {
+  it('днём ничего не шлёт: микро-блоков больше нет (ADR-017)', () => {
     const midday = { date: '2026-08-12', time: '12:00', weekday: 3 as Weekday };
-    const saturday = { date: '2026-08-15', time: '12:00', weekday: 6 as Weekday };
     const sent = new Set<ReminderKind>(['morning']);
-
-    expect(dueReminders(input({ moment: midday, miniReminders: true, alreadySent: sent }))).toEqual(
-      ['mini_midday'],
-    );
-    expect(
-      dueReminders(input({ moment: midday, miniReminders: false, alreadySent: sent })),
-    ).toEqual([]);
-    expect(
-      dueReminders(input({ moment: saturday, miniReminders: true, alreadySent: sent })),
-    ).toEqual([]);
-  });
-
-  it('различает дневной и послеобеденный микро-блок', () => {
-    const afternoon = { date: '2026-08-12', time: '16:05', weekday: 3 as Weekday };
-    const sent = new Set<ReminderKind>(['morning', 'mini_midday']);
-
-    expect(
-      dueReminders(input({ moment: afternoon, miniReminders: true, alreadySent: sent })),
-    ).toEqual(['mini_afternoon']);
+    expect(dueReminders(input({ moment: midday, alreadySent: sent }))).toEqual([]);
   });
 });

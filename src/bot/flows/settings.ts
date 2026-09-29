@@ -75,12 +75,10 @@ async function showMenu(ctx: Context, deps: BotDeps): Promise<void> {
     .text('🏋️ Инвентарь', 's:gear:')
     .row()
     .text(`📏 ${profileLine(user)}`, 's:profile:')
-    .text(`🔔 Микро-блоки: ${user.miniReminders ? 'вкл' : 'выкл'}`, 's:mini:')
+    .text(buttons.mode(user.trainingMode), 's:mode:')
     .row()
     .text('📶 Уровни', 's:levels:')
-    .text('⏸ Пауза', 's:pause:')
-    .row()
-    .text(buttons.mode(user.trainingMode), 's:mode:');
+    .text('⏸ Пауза', 's:pause:');
 
   await ctx.reply(texts.settings.menu, { reply_markup: keyboard });
 }
@@ -111,15 +109,6 @@ async function handle(ctx: Context, deps: BotDeps, action: string, value: string
         return;
       }
       await updateUser(deps.db, userId, { session_minutes: Number(value) });
-      await done(ctx, deps);
-      return;
-    }
-    case 'mini': {
-      const user = await getUser(deps.db, userId);
-      if (user === null) {
-        return;
-      }
-      await updateUser(deps.db, userId, { mini_reminders: user.miniReminders ? 0 : 1 });
       await done(ctx, deps);
       return;
     }

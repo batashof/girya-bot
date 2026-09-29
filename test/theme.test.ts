@@ -1,18 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { adaptationFor, NO_ADAPTATION } from '../src/domain/adaptation';
 import { themeDose, themeMenu, type DoseInput } from '../src/domain/theme';
-import type { Exercise, TemplateItem } from '../src/domain/types';
-import {
-  baseProgression,
-  defaultUser,
-  loadChainSteps,
-  loadExercises,
-  loadTemplates,
-} from './fixtures';
+import type { Exercise } from '../src/domain/types';
+import { baseProgression, defaultUser, loadChainSteps, loadExercises } from './fixtures';
 
 const exercises = loadExercises();
 const chainSteps = loadChainSteps();
-const templateItems: TemplateItem[] = loadTemplates().flatMap((template) => template.items);
 
 function exercise(code: string): Exercise {
   const found = exercises.get(code);
@@ -29,7 +22,6 @@ function dose(code: string, overrides: Partial<DoseInput> = {}) {
     user: defaultUser(),
     chainSteps,
     progression: baseProgression(),
-    templateItems,
     adaptation: NO_ADAPTATION,
     ...overrides,
   });
@@ -72,13 +64,20 @@ describe('themeMenu', () => {
 
 describe('themeDose', () => {
   it('упражнение из лестницы берёт текущую ступень и цель пользователя', () => {
-    const progression = baseProgression({ push: { chainLevel: 4, currentReps: 12 } });
+    const progression = baseProgression({ push: { chainLevel: 4, currentReps: 14 } });
     const item = dose('PR3', { progression });
     expect(item.variant).toBe('с пола');
-    expect(item.target).toBe(12);
-    // Подходы и отдых — как у пункта дня, который ведёт лестницу отжиманий.
-    expect(item.sets).toBe(3);
-    expect(item.restSec).toBe(60);
+    expect(item.target).toBe(14);
+    // Подходы и отдых — из дозы самого упражнения.
+    expect(item.sets).toBe(exercise('PR3').dose.sets);
+    expect(item.restSec).toBe(exercise('PR3').dose.restSec);
+  });
+
+  it('ступень с паузой меняет время повтора и его расшифровку', () => {
+    const progression = baseProgression({ push: { chainLevel: 5, currentReps: 10 } });
+    const item = dose('PR3', { progression });
+    expect(item.repSec).toBe(6);
+    expect(item.repNote).toContain('пауза 2 с');
   });
 
   it('пункт темы не привязан к лестнице — прогрессию он не двигает', () => {
@@ -91,29 +90,30 @@ describe('themeDose', () => {
     // Тяга под столом — ступени 4–6 лестницы тяги, пользователь на первой.
     const item = dose('RW7');
     expect(item.variant).toBe('ноги согнуты');
-    expect(item.target).toBe(8);
+    expect(item.target).toBe(10);
   });
 
   it('перерос упражнение — берётся его самая трудная ступень с верхней границей', () => {
     const progression = baseProgression({ row: { chainLevel: 7, exerciseCode: 'RW6' } });
     const item = dose('RW7', { progression });
     expect(item.variant).toBe('ноги на возвышении');
-    expect(item.target).toBe(12);
+    expect(item.target).toBe(15);
   });
 
-  it('упражнение из шаблона берёт подходы, цель и отдых оттуда', () => {
-    // NK1 стоит в шейном протоколе: один подход, 10 повторов, 15 секунд отдыха.
+  it('удержание: цель — секунды одного удержания, сколько их — в holds', () => {
+    // Chin tuck: подбородок назад и держать, а не «10 повторов по 5 секунд» (ADR-017).
     const item = dose('NK1');
-    expect(item.sets).toBe(1);
-    expect(item.target).toBe(10);
-    expect(item.restSec).toBe(15);
+    expect(item.unit).toBe('seconds');
+    expect(item.target).toBe(exercise('NK1').repSec);
+    expect(item.target).toBeGreaterThanOrEqual(30);
+    expect(item.holds).toBe(exercise('NK1').dose.reps);
   });
 
-  it('упражнение вне шаблонов и лестниц получает скромное умолчание и гирю из инвентаря', () => {
-    // Жим стоя не стоит ни в одном дне: доза по умолчанию, вес — из гирь пользователя.
+  it('упражнение вне лестниц берёт свою дозу и гирю из инвентаря', () => {
     const item = dose('PR1');
-    expect(item.sets).toBe(2);
-    expect(item.target).toBe(10);
+    expect(item.sets).toBe(exercise('PR1').dose.sets);
+    expect(item.target).toBe(exercise('PR1').dose.reps);
+    expect(item.repSec).toBe(exercise('PR1').repSec);
     expect(item.weight).toBe(5);
   });
 
