@@ -289,9 +289,9 @@ async function sendWithDemo(
   // (ADR-014), но упасть на нём и оставить тренировку без следующего шага нельзя.
   // Почти статичную гифку Telegram отдаёт документом, и поля `animation` в ответе нет.
   const fileId = 'animation' in message ? message.animation.file_id : undefined;
-  if (demo.fromBundle && fileId !== undefined) {
+  if (demo.bundleDigest !== null && fileId !== undefined) {
     try {
-      await cacheBuiltinMedia(deps.db, code, fileId);
+      await cacheBuiltinMedia(deps.db, code, fileId, demo.bundleDigest);
     } catch (failure) {
       console.error(`не удалось запомнить file_id для ${code}`, failure);
     }

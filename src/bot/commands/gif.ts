@@ -54,7 +54,13 @@ async function attachMedia(ctx: Context, deps: BotDeps, code: string): Promise<v
       : message?.video !== undefined
         ? 'video'
         : 'photo';
-  await saveMedia(deps.db, { exerciseCode: exercise.code, fileId, kind, source: 'user' });
+  await saveMedia(deps.db, {
+    exerciseCode: exercise.code,
+    fileId,
+    kind,
+    source: 'user',
+    digest: null,
+  });
   await ctx.reply(texts.gif.saved(exercise.name));
 }
 

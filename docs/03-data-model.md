@@ -186,11 +186,14 @@ CREATE TABLE exercise_media (
   file_id       TEXT NOT NULL,
   kind          TEXT NOT NULL DEFAULT 'animation', -- animation | photo | video
   source        TEXT NOT NULL DEFAULT 'user',      -- user | builtin
+  digest        TEXT,                              -- отпечаток встроенной схемы
   added_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 -- source = 'builtin' — кеш file_id для встроенной схемы из бандла: после первой
 -- отправки файл больше не грузится. Своя гифка (`/gif`) пишется с source = 'user'
 -- и такой кеш никогда не перетирает.
+-- digest — хеш гифки, для которой запомнен file_id. После `pnpm demos:build` хеш
+-- в бандле меняется, кеш считается устаревшим, и схема уходит файлом заново.
 
 -- Минимальный аудит
 CREATE TABLE events (
