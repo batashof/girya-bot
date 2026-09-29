@@ -9,6 +9,7 @@ import { registerWorkout } from './flows/workout';
 import { registerNeck } from './flows/neck';
 import { registerSettings } from './flows/settings';
 import { registerThemes } from './flows/themes';
+import { registerComplexes } from './flows/complex';
 import { texts } from './ui/texts';
 import type { BotDeps } from './deps';
 
@@ -41,6 +42,7 @@ export function createBot(options: BotOptions): Bot {
   registerNeck(bot, deps);
   registerSettings(bot, deps);
   registerThemes(bot, deps);
+  registerComplexes(bot, deps);
   // Онбординг регистрируется последним: он ловит свободный текст и должен пропускать
   // мимо себя всё, что уже разобрали команды.
   registerOnboarding(bot, deps);

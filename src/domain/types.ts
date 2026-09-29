@@ -15,8 +15,8 @@ export type OptionalEquipment = 'kettlebell' | 'band' | 'bar' | 'backpack';
 export type LoadHint = 'bodyweight' | 'kb_light' | 'kb_main' | 'kb_heavy' | 'backpack';
 
 /**
- * Роль пункта в дне. Задаёт и порядок показа, и очередь на вылет по бюджету минут:
- * шея → основное движение → осанка → поддерживающее → мобилити (ADR-012).
+ * Роль пункта в дне: шея → основное движение → осанка → поддерживающее → мобилити.
+ * Шея и основное движение составляют «сокращённую версию» вечернего пинга (ADR-018).
  */
 export type Block = 'neck' | 'main' | 'circuit' | 'posture' | 'support' | 'mobility' | 'walk';
 
@@ -101,13 +101,24 @@ export interface Theme {
   groupCode: string;
 }
 
+/**
+ * Комплекс под одну проблему (ADR-018): фиксированный набор упражнений с дозами,
+ * проходится по порядку от начала до конца. Пункты — обычные `template_items`.
+ * Как и тема, лестницы и серию не двигает: пункты не привязаны к лестницам.
+ */
+export interface Complex {
+  code: string;
+  title: string;
+  /** Одна-две фразы: для чего комплекс и когда его делать. */
+  note: string;
+}
+
 export interface DayTemplate {
   code: string;
   title: string;
   /** 1 = понедельник … 7 = воскресенье. */
   weekday: number;
   intensity: Intensity;
-  estMinutes: number;
   optional: boolean;
   items: TemplateItem[];
 }
@@ -133,7 +144,6 @@ export interface Kettlebell {
 
 export interface UserProfile {
   timezone: string;
-  sessionMinutes: number;
   heightCm: number | null;
   level: 'base' | 'strong';
   hasPullupBar: boolean;
@@ -218,7 +228,6 @@ export interface Workout {
   deload: boolean;
   optional: boolean;
   items: PlannedItem[];
-  estimatedMinutes: number;
-  /** Что не влезло в бюджет минут — чтобы бот мог об этом сказать. */
+  /** Чего не будет: нет инвентаря или упражнение нельзя при боли в шее — бот об этом говорит. */
   dropped: string[];
 }

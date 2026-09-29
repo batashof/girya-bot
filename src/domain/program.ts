@@ -15,7 +15,7 @@ import type {
 } from './types';
 
 /**
- * Резолвер дня: шаблон недели + лестницы + бюджет минут → конкретный набор подходов.
+ * Резолвер дня: шаблон недели + лестницы + поправки → конкретный набор подходов.
  * Чистая функция: те же входные данные — та же тренировка (ADR-003).
  */
 
@@ -30,29 +30,21 @@ export interface ResolveInput {
   swaps: Map<string, string>;
   /** Поправка на боль в шее. По умолчанию — никакой. */
   adaptation?: Adaptation;
+  /**
+   * «Сокращённая версия» вечернего пинга: только шейный протокол и основное движение.
+   * Время не считается и не ограничивается (ADR-018) — сокращение идёт по блокам.
+   */
+  short?: boolean;
+  /**
+   * Комплекс живёт вне четырёхнедельного блока (ADR-018): разгрузочная неделя его не режет —
+   * это набор под проблему, а не ступень программы.
+   */
+  outsideBlock?: boolean;
 }
 
-/** Очередь на вылет, когда день не влезает в бюджет: с конца списка (ADR-012). */
-const BLOCK_PRIORITY = [
-  'neck',
-  'main',
-  'circuit',
-  'posture',
-  'support',
-  'mobility',
-  'walk',
-] as const;
+/** Что остаётся в сокращённой версии: без них день теряет смысл (ADR-008). */
+const SHORT_BLOCKS = new Set(['neck', 'main']);
 
-/**
- * Шея и основное движение не режутся никогда: без них день теряет смысл (ADR-008, ADR-012).
- * Прогулка тоже: она не входит в бюджет утренних минут — это «10 минут + прогулка» (docs/05).
- */
-const PROTECTED_BLOCKS = new Set(['neck', 'main', 'walk']);
-
-/** Прогулка идёт вне бюджета, поэтому и в оценку длительности не попадает. */
-const UNTIMED_BLOCKS = new Set(['walk']);
-
-const DELOAD_MINUTES = 10;
 const DELOAD_MAX_SETS = 2;
 
 /** Пауза между удержаниями внутри подхода: перехватить дыхание и снова упереться. */
@@ -72,9 +64,8 @@ export function weekInBlock(blockStart: LocalDate, date: LocalDate): number {
 
 export function resolveWorkout(input: ResolveInput): Workout {
   const week = weekInBlock(input.user.blockStart, input.date);
-  const deload = week === 4;
+  const deload = week === 4 && input.outsideBlock !== true;
   const adaptation = input.adaptation ?? NO_ADAPTATION;
-  const budgetMinutes = dayBudgetMinutes(input.template, input.user.sessionMinutes, deload);
 
   const planned: PlannedItem[] = [];
   const dropped: string[] = [];
@@ -89,8 +80,8 @@ export function resolveWorkout(input: ResolveInput): Workout {
     planned.push(resolved);
   }
 
-  const { kept, cut } = trimToBudget(planned, budgetMinutes);
-  dropped.push(...cut.map((item) => item.exercise.name));
+  const kept =
+    input.short === true ? planned.filter((item) => SHORT_BLOCKS.has(item.block)) : planned;
 
   return {
     templateCode: input.template.code,
@@ -99,7 +90,6 @@ export function resolveWorkout(input: ResolveInput): Workout {
     deload,
     optional: input.template.optional,
     items: kept.map((item, index) => ({ ...item, position: index + 1 })),
-    estimatedMinutes: Math.round(totalSeconds(kept) / 60),
     dropped,
   };
 }
@@ -269,67 +259,6 @@ export function resolveWeight(hint: LoadHint | null, user: UserProfile): number 
 }
 
 /**
- * Урезание под бюджет минут. Режем по одному пункту с конца очереди приоритетов,
- * пока день не влезет; шею и основное движение не трогаем никогда.
- */
-function trimToBudget(
-  items: PlannedItem[],
-  budgetMinutes: number,
-): { kept: PlannedItem[]; cut: PlannedItem[] } {
-  const budgetSeconds = budgetMinutes * 60;
-  const kept = [...items];
-  const cut: PlannedItem[] = [];
-
-  while (totalSeconds(kept) > budgetSeconds) {
-    let victimIndex = -1;
-    let victimPriority = -1;
-    for (const [index, item] of kept.entries()) {
-      if (PROTECTED_BLOCKS.has(item.block)) {
-        continue;
-      }
-      const priority = BLOCK_PRIORITY.indexOf(item.block);
-      if (priority > victimPriority) {
-        victimPriority = priority;
-        victimIndex = index;
-      }
-    }
-    if (victimIndex === -1) {
-      break;
-    }
-    const [victim] = kept.splice(victimIndex, 1);
-    if (victim !== undefined) {
-      cut.push(victim);
-    }
-  }
-
-  return { kept, cut };
-}
-
-/**
- * Бюджет минут на день.
- *
- * Обычный день живёт по настройке пользователя. На разгрузочной неделе потолок — 10 минут.
- * Длинный день по желанию (суббота) — единственное исключение: у него свой потолок 20–25 минут,
- * иначе круговой блок из docs/05 просто не влезал бы никогда (ADR-012).
- */
-export function dayBudgetMinutes(
-  template: DayTemplate,
-  sessionMinutes: number,
-  deload: boolean,
-): number {
-  if (deload) {
-    return Math.min(DELOAD_MINUTES, sessionMinutes);
-  }
-  return template.optional ? Math.max(sessionMinutes, template.estMinutes) : sessionMinutes;
-}
-
-export function totalSeconds(items: PlannedItem[]): number {
-  return items
-    .filter((item) => !UNTIMED_BLOCKS.has(item.block))
-    .reduce((sum, item) => sum + estimateSeconds(item), 0);
-}
-
-/**
  * Сколько делать в одном подходе — то, что карточка показывает человеку (ADR-017).
  *
  * Повтор всегда один и тот же объект: у движения — одно движение с известным темпом
@@ -355,20 +284,6 @@ export function prescription(item: PlannedItem): Prescription {
     case 'reps':
       return { reps: item.target, repSec: item.repSec, repNote: item.repNote, kind: 'reps' };
   }
-}
-
-/**
- * Оценка длительности пункта: работа плюс отдых между подходами. Работа — ровно то, что
- * написано в карточке: повторы × время повтора, у одностороннего — на обе стороны.
- * Стороны идут подряд, отдых между ними не считается.
- */
-export function estimateSeconds(item: PlannedItem): number {
-  const sides = item.unilateral ? 2 : 1;
-  const { reps, repSec, kind } = prescription(item);
-  const pauses = kind === 'hold' ? Math.max(0, reps - 1) * BETWEEN_HOLDS_SEC : 0;
-  const work = sides * (reps * repSec + pauses);
-  const rest = Math.max(0, item.sets - 1) * item.restSec;
-  return Math.round(item.sets * work + rest);
 }
 
 export function clamp(value: number, min: number, max: number): number {

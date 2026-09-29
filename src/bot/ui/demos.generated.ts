@@ -10,6 +10,7 @@ import NK7 from '../../../assets/demos/NK7.gif';
 import NK8 from '../../../assets/demos/NK8.gif';
 import NK9 from '../../../assets/demos/NK9.gif';
 import NK10 from '../../../assets/demos/NK10.gif';
+import NK11 from '../../../assets/demos/NK11.gif';
 import SC1 from '../../../assets/demos/SC1.gif';
 import SC2 from '../../../assets/demos/SC2.gif';
 import SC3 from '../../../assets/demos/SC3.gif';
@@ -18,6 +19,8 @@ import SC6 from '../../../assets/demos/SC6.gif';
 import SC8 from '../../../assets/demos/SC8.gif';
 import SC9 from '../../../assets/demos/SC9.gif';
 import SC10 from '../../../assets/demos/SC10.gif';
+import SC11 from '../../../assets/demos/SC11.gif';
+import SC12 from '../../../assets/demos/SC12.gif';
 import RW1 from '../../../assets/demos/RW1.gif';
 import RW2 from '../../../assets/demos/RW2.gif';
 import RW5 from '../../../assets/demos/RW5.gif';
@@ -38,6 +41,7 @@ import PR3 from '../../../assets/demos/PR3.gif';
 import PR4 from '../../../assets/demos/PR4.gif';
 import PR5 from '../../../assets/demos/PR5.gif';
 import PR6 from '../../../assets/demos/PR6.gif';
+import PR7 from '../../../assets/demos/PR7.gif';
 import LG2 from '../../../assets/demos/LG2.gif';
 import LG4 from '../../../assets/demos/LG4.gif';
 import LG5 from '../../../assets/demos/LG5.gif';
@@ -73,6 +77,7 @@ export const BUILTIN_DEMOS: Record<string, ArrayBuffer> = {
   NK8,
   NK9,
   NK10,
+  NK11,
   SC1,
   SC2,
   SC3,
@@ -81,6 +86,8 @@ export const BUILTIN_DEMOS: Record<string, ArrayBuffer> = {
   SC8,
   SC9,
   SC10,
+  SC11,
+  SC12,
   RW1,
   RW2,
   RW5,
@@ -101,6 +108,7 @@ export const BUILTIN_DEMOS: Record<string, ArrayBuffer> = {
   PR4,
   PR5,
   PR6,
+  PR7,
   LG2,
   LG4,
   LG5,
@@ -137,6 +145,7 @@ export const BUILTIN_DEMO_DIGESTS: Record<string, string> = {
   NK8: '6981186a5348c1be',
   NK9: 'f6fc7cda96a4bd43',
   NK10: 'c655617d7a734fb1',
+  NK11: 'a35f692d97a31611',
   SC1: 'f54f5d2e26edc1c4',
   SC2: '26fc71be97c6e595',
   SC3: '3c8458e94c8295a6',
@@ -145,6 +154,8 @@ export const BUILTIN_DEMO_DIGESTS: Record<string, string> = {
   SC8: '2977ed362833fb6a',
   SC9: '6baf0c4fe4ffa12e',
   SC10: '3bb5516e5c986898',
+  SC11: '75304a59d7cd04db',
+  SC12: 'fefb267575bbbc97',
   RW1: 'ebd2348deb85916c',
   RW2: '59621ec91ba9f19e',
   RW5: '6a7b3024f6972292',
@@ -165,6 +176,7 @@ export const BUILTIN_DEMO_DIGESTS: Record<string, string> = {
   PR4: '754641a08e91511a',
   PR5: '0895dd5a48ef980a',
   PR6: 'ebbcffb14786dd58',
+  PR7: '151ee25c2f17eb24',
   LG2: '85afdb8c360d8631',
   LG4: '1a7674b1a44e5eed',
   LG5: 'a9c8b5b3adce0ceb',

@@ -1,6 +1,6 @@
 import type { PlannedItem, Workout } from '../../domain/types';
-import { remainingSeconds, setsBefore, totalSets, type WorkoutStep } from '../../domain/session';
-import { BETWEEN_HOLDS_SEC, estimateSeconds, prescription } from '../../domain/program';
+import { setsBefore, totalSets, type WorkoutStep } from '../../domain/session';
+import { BETWEEN_HOLDS_SEC, prescription } from '../../domain/program';
 import { plural } from './plural';
 
 /** Отрисовка тренировки текстом (docs/04-bot-ux.md). Разметка — HTML. */
@@ -43,7 +43,7 @@ export function escapeHtml(text: string): string {
 export function renderWorkout(workout: Workout, weekday: number): string {
   const lines = [
     `🏋️ <b>${escapeHtml(weekdayName(weekday))} — ${escapeHtml(workout.title)}</b>`,
-    `~${workout.estimatedMinutes} мин · неделя ${workout.weekInBlock} из 4${workout.deload ? ' (разгрузочная)' : ''}`,
+    `Неделя ${workout.weekInBlock} из 4${workout.deload ? ' (разгрузочная)' : ''}`,
     '',
   ];
 
@@ -92,8 +92,7 @@ function groupItems(items: PlannedItem[]): Group[] {
 
 function renderGroup(group: Group): string {
   if (group.kind === 'neck') {
-    const seconds = group.items.reduce((sum, item) => sum + estimateSeconds(item), 0);
-    return `Шейный протокол, ${group.items.length} упр. — ${Math.max(1, Math.round(seconds / 60))} мин`;
+    return `Шейный протокол, ${group.items.length} упр.`;
   }
   const item = group.items[0];
   return item === undefined ? '' : escapeHtml(renderItem(item));
@@ -120,14 +119,10 @@ export function renderCard(
   }
   const { item } = step;
 
-  const done = setsBefore(steps, stepIndex, setIndex);
-  const lines =
-    header === undefined
-      ? [
-          `${progressBar(done, totalSets(steps))} упражнение ${stepIndex + 1} из ${steps.length}`,
-          `Осталось ~${minutesLeft(remainingSeconds(steps, stepIndex, setIndex))} мин`,
-        ]
-      : [escapeHtml(header)];
+  // Сколько времени осталось, не пишется: время тренировки не планируется (ADR-018).
+  const lines = [
+    header === undefined ? progressLine(steps, stepIndex, setIndex) : escapeHtml(header),
+  ];
   lines.push('', `<b>${escapeHtml(stepTitle(step))}</b>`);
 
   lines.push(setLine(step, setIndex), '', ...taskLines(step));
@@ -256,8 +251,10 @@ export function progressBar(done: number, total: number): string {
   return `${'▰'.repeat(filled)}${'▱'.repeat(BAR_WIDTH - filled)}`;
 }
 
-function minutesLeft(secondsTotal: number): number {
-  return Math.max(1, Math.round(secondsTotal / 60));
+/** «▰▰▱▱▱▱▱▱ упражнение 3 из 10»: бар идёт по подходам, подпись — по упражнениям. */
+export function progressLine(steps: WorkoutStep[], stepIndex: number, setIndex: number): string {
+  const done = setsBefore(steps, stepIndex, setIndex);
+  return `${progressBar(done, totalSets(steps))} упражнение ${stepIndex + 1} из ${steps.length}`;
 }
 
 function seconds(value: number): string {

@@ -94,35 +94,52 @@ export function loadChainSteps(): ChainStep[] {
   return steps;
 }
 
-export function loadTemplates(): DayTemplate[] {
+/** Пункты шаблона из сида так же, как их пишет сборщик: протоколы развёрнуты, позиции с 1. */
+function toItems(raw: RawItem[]): TemplateItem[] {
   const protocols = templatesSeed.protocols as Record<string, RawItem[]>;
-  return templatesSeed.templates.map((raw) => {
-    const expanded = (raw.items as RawItem[]).flatMap((item) =>
-      item.protocol === undefined ? [item] : (protocols[item.protocol] ?? []),
-    );
-    const items: TemplateItem[] = expanded.map((item, index) => ({
-      position: index + 1,
-      exerciseCode: item.exercise ?? '',
-      block: item.block as TemplateItem['block'],
-      followChain: (item.follow_chain ?? null) as Chain | null,
-      sets: item.sets ?? 1,
-      targetMin: item.target_min ?? 0,
-      targetMax: item.target_max ?? 0,
-      holds: item.holds ?? 1,
-      restSec: item.rest_sec ?? 60,
-      loadHint: (item.load_hint ?? null) as TemplateItem['loadHint'],
-      optional: item.optional === 1,
-    }));
-    return {
-      code: raw.code,
-      title: raw.title,
-      weekday: raw.weekday,
-      intensity: raw.intensity as DayTemplate['intensity'],
-      estMinutes: raw.est_minutes,
-      optional: raw.optional === 1,
-      items,
-    };
-  });
+  const expanded = raw.flatMap((item) =>
+    item.protocol === undefined ? [item] : (protocols[item.protocol] ?? []),
+  );
+  return expanded.map((item, index) => ({
+    position: index + 1,
+    exerciseCode: item.exercise ?? '',
+    block: item.block as TemplateItem['block'],
+    followChain: (item.follow_chain ?? null) as Chain | null,
+    sets: item.sets ?? 1,
+    targetMin: item.target_min ?? 0,
+    targetMax: item.target_max ?? 0,
+    holds: item.holds ?? 1,
+    restSec: item.rest_sec ?? 60,
+    loadHint: (item.load_hint ?? null) as TemplateItem['loadHint'],
+    optional: item.optional === 1,
+  }));
+}
+
+/** Комплекс из сида в том виде, в каком его грузит бот: шаблон с kind = 'complex' (ADR-018). */
+export function complexFor(code: string): DayTemplate {
+  const raw = templatesSeed.complexes.find((complex) => complex.code === code);
+  if (raw === undefined) {
+    throw new Error(`Нет комплекса ${code}`);
+  }
+  return {
+    code: raw.code,
+    title: raw.title,
+    weekday: 0,
+    intensity: 'light',
+    optional: true,
+    items: toItems(raw.items as RawItem[]),
+  };
+}
+
+export function loadTemplates(): DayTemplate[] {
+  return templatesSeed.templates.map((raw) => ({
+    code: raw.code,
+    title: raw.title,
+    weekday: raw.weekday,
+    intensity: raw.intensity as DayTemplate['intensity'],
+    optional: raw.optional === 1,
+    items: toItems(raw.items as RawItem[]),
+  }));
 }
 
 export function templateFor(weekday: number): DayTemplate {
@@ -133,11 +150,10 @@ export function templateFor(weekday: number): DayTemplate {
   return template;
 }
 
-/** Стартовая конфигурация из docs/05: 190 см, 73 кг, пара пятёрок, 15 минут. */
+/** Стартовая конфигурация из docs/05: 190 см, 73 кг, пара пятёрок. */
 export function defaultUser(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
     timezone: 'Europe/Warsaw',
-    sessionMinutes: 15,
     heightCm: 190,
     level: 'base',
     hasPullupBar: false,

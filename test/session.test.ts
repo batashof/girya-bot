@@ -3,8 +3,6 @@ import { resolveWorkout } from '../src/domain/program';
 import {
   chainOutcomes,
   recordsForStep,
-  remainingSeconds,
-  secondsPerSet,
   setsBefore,
   toSteps,
   totalSets,
@@ -67,30 +65,6 @@ describe('прогресс и время', () => {
     expect(setsBefore(steps, 0, 1)).toBe(0);
     const last = steps.length - 1;
     expect(setsBefore(steps, last, steps[last]!.sets)).toBe(totalSets(steps) - 1);
-  });
-
-  it('остаток времени только убывает по ходу тренировки', () => {
-    let previous = Number.POSITIVE_INFINITY;
-    for (const step of steps) {
-      for (let set = 1; set <= step.sets; set += 1) {
-        const left = remainingSeconds(steps, step.index, set);
-        expect(left).toBeLessThan(previous);
-        previous = left;
-      }
-    }
-    expect(previous).toBeGreaterThan(0);
-  });
-
-  it('в начале остаток совпадает с оценкой дня', () => {
-    // Расхождение больше минуты означало бы, что карточка и план дня считают по-разному.
-    const planned = workoutFor(1).estimatedMinutes * 60;
-    expect(Math.abs(remainingSeconds(steps, 0, 1) - planned)).toBeLessThan(60);
-  });
-
-  it('подход не длиннее упражнения целиком', () => {
-    for (const step of steps) {
-      expect(secondsPerSet(step)).toBeLessThanOrEqual(remainingSeconds(steps, step.index, 1));
-    }
   });
 });
 

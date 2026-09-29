@@ -28,11 +28,11 @@ function dose(code: string, overrides: Partial<DoseInput> = {}) {
 }
 
 describe('themeMenu', () => {
-  it('собирает группу по коду и сортирует NK2 раньше NK10', () => {
+  it('собирает группу по коду и сортирует NK2 раньше NK10 и NK11', () => {
     const menu = themeMenu('neck', exercises.values(), defaultUser(), NO_ADAPTATION);
     const codes = menu.exercises.map((item) => item.code);
     expect(codes[0]).toBe('NK1');
-    expect(codes.at(-1)).toBe('NK10');
+    expect(codes.slice(-2)).toEqual(['NK10', 'NK11']);
     expect(menu.exercises.every((item) => item.groupCode === 'neck')).toBe(true);
   });
 

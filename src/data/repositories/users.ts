@@ -7,7 +7,6 @@ interface UserRow {
   timezone: string;
   remind_at: string;
   evening_ping_at: string | null;
-  session_minutes: number;
   height_cm: number | null;
   weight_kg: number | null;
   birth_year: number | null;
@@ -34,7 +33,6 @@ export async function getUser(db: D1Database, telegramId: number): Promise<User 
     timezone: row.timezone,
     remindAt: row.remind_at,
     eveningPingAt: row.evening_ping_at,
-    sessionMinutes: row.session_minutes,
     heightCm: row.height_cm,
     weightKg: row.weight_kg,
     birthYear: row.birth_year,
@@ -85,7 +83,6 @@ export interface UserPatch {
   timezone?: string;
   remind_at?: string;
   evening_ping_at?: string | null;
-  session_minutes?: number;
   height_cm?: number;
   weight_kg?: number;
   birth_year?: number;
