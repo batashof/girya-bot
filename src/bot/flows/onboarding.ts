@@ -26,7 +26,7 @@ import { userIdOf, type BotDeps } from '../deps';
 
 const SCREEN = 'onboarding';
 
-type Step = 'timezone' | 'remind' | 'minutes' | 'profile' | 'bells' | 'gear' | 'level' | 'mini';
+type Step = 'timezone' | 'remind' | 'minutes' | 'profile' | 'bells' | 'gear' | 'level';
 
 interface State {
   step: Step;
@@ -134,11 +134,6 @@ async function handleChoice(
     }
     case 'level': {
       await updateUser(deps.db, userId, { level: value });
-      await ask(ctx, deps, 'mini');
-      return;
-    }
-    case 'mini': {
-      await updateUser(deps.db, userId, { mini_reminders: value === 'yes' ? 1 : 0 });
       await finish(ctx, deps);
       return;
     }
@@ -225,10 +220,6 @@ async function ask(ctx: Context, deps: BotDeps, step: Step): Promise<void> {
     case 'level':
       await save(deps, userId, { step });
       await ctx.reply(texts.onboarding.level, { reply_markup: levelKeyboard() });
-      return;
-    case 'mini':
-      await save(deps, userId, { step });
-      await ctx.reply(texts.onboarding.mini, { reply_markup: miniKeyboard() });
       return;
     default:
       return;
@@ -323,10 +314,6 @@ function levelKeyboard(): InlineKeyboard {
     .text(buttons.levelBase, 'ob:level:base')
     .row()
     .text(buttons.levelStrong, 'ob:level:strong');
-}
-
-function miniKeyboard(): InlineKeyboard {
-  return new InlineKeyboard().text(buttons.yes, 'ob:mini:yes').text(buttons.no, 'ob:mini:no');
 }
 
 export function parseTime(text: string): string | null {

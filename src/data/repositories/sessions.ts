@@ -253,31 +253,6 @@ export async function doneDates(
   return new Set(rows.map((row) => row.local_date));
 }
 
-/** Микро-сессия: пишется отдельной строкой и на прогрессию не влияет (ADR-013). */
-export async function recordMiniSession(
-  db: D1Database,
-  telegramId: number,
-  options: { localDate: string; templateCode: string; weekInBlock: number; records: SetRecord[] },
-): Promise<void> {
-  await run(
-    db,
-    `INSERT INTO sessions (user_id, local_date, template_code, kind, week_in_block, status, started_at, finished_at)
-          VALUES (?, ?, ?, 'mini', ?, 'done', datetime('now'), datetime('now'))`,
-    telegramId,
-    options.localDate,
-    options.templateCode,
-    options.weekInBlock,
-  );
-  const row = await one<{ id: number }>(
-    db,
-    `SELECT id FROM sessions WHERE user_id = ? AND kind = 'mini' ORDER BY id DESC LIMIT 1`,
-    telegramId,
-  );
-  if (row !== null) {
-    await recordSets(db, row.id, options.records, null);
-  }
-}
-
 /**
  * Тренировка по теме (ADR-016): своя сессия с `kind = 'theme'`, сколько угодно раз в день.
  * Заводится при выборе первого упражнения, а не при открытии темы: заглянуть в список
@@ -302,20 +277,6 @@ export async function startThemeSession(
     throw new Error('Сессия по теме не создалась');
   }
   return row.id;
-}
-
-export async function countMiniToday(
-  db: D1Database,
-  telegramId: number,
-  localDate: string,
-): Promise<number> {
-  const row = await one<{ n: number }>(
-    db,
-    `SELECT count(*) n FROM sessions WHERE user_id = ? AND local_date = ? AND kind = 'mini'`,
-    telegramId,
-    localDate,
-  );
-  return row?.n ?? 0;
 }
 
 export async function skipSession(db: D1Database, sessionId: number): Promise<void> {

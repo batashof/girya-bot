@@ -22,6 +22,17 @@ export type Block = 'neck' | 'main' | 'circuit' | 'posture' | 'support' | 'mobil
 
 export type Intensity = 'heavy' | 'medium' | 'light' | 'recovery';
 
+/**
+ * Доза упражнения «само по себе» — когда его выбирают вне программы дня (ADR-016, ADR-017):
+ * подходы, повторы в подходе и отдых между подходами. У удержаний (`unit = 'seconds'`)
+ * повтор — одно удержание длиной `repSec`.
+ */
+export interface Dose {
+  sets: number;
+  reps: number;
+  restSec: number;
+}
+
 export interface Exercise {
   code: string;
   name: string;
@@ -37,6 +48,15 @@ export interface Exercise {
   videoUrl: string | null;
   neckSafe: boolean;
   swapGroup: string;
+  dose: Dose;
+  /**
+   * Сколько секунд занимает один повтор. У удержаний это и есть задание («держи 30 с»),
+   * у движений — темп («~4 с»). Карточка показывает ровно это число, а в `cues` цифр
+   * времени и количества нет: иначе техника спорит с заданием (ADR-017).
+   */
+  repSec: number;
+  /** Из чего складывается повтор: «1 с вверх, 3 с вниз». Для удержаний не нужен. */
+  repNote: string | null;
 }
 
 /** Ступень лестницы: упражнение плюс уточнение варианта, темпа и веса. */
@@ -50,6 +70,9 @@ export interface ChainStep {
   requires: OptionalEquipment | null;
   targetMin: number;
   targetMax: number;
+  /** Своё время повтора у ступени с темпом или паузой; `null` — как у упражнения. */
+  repSec: number | null;
+  repNote: string | null;
 }
 
 export interface TemplateItem {
@@ -61,6 +84,8 @@ export interface TemplateItem {
   sets: number;
   targetMin: number;
   targetMax: number;
+  /** Удержаний в подходе — только для `unit = 'seconds'`, где цель — секунды удержания. */
+  holds: number;
   restSec: number;
   loadHint: LoadHint | null;
   optional: boolean;
@@ -136,7 +161,6 @@ export interface User extends UserProfile {
   /** HH:MM локального времени. */
   remindAt: string;
   eveningPingAt: string | null;
-  miniReminders: boolean;
   weightKg: number | null;
   birthYear: number | null;
   /** Пауза — диапазон дат, а не дедлайн: серия должна знать, какие дни прощать. */
@@ -156,7 +180,16 @@ export interface PlannedItem {
   /** Уточнение из лестницы: «с колен», «ноги прямые». */
   variant: string | null;
   sets: number;
+  /**
+   * Прогрессируемое число: повторы в подходе (`reps`), шаги (`steps`) или секунды одного
+   * удержания (`seconds`). Сколько это в повторах и секундах — `prescription()` в session.ts.
+   */
   target: number;
+  /** Удержаний в подходе для `unit = 'seconds'`; для остальных единиц всегда 1. */
+  holds: number;
+  /** Секунд на повтор у движений (с темпом ступени); у удержаний не используется. */
+  repSec: number;
+  repNote: string | null;
   unit: Unit;
   tempo: Tempo;
   weight: number | null;

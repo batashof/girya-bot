@@ -7,7 +7,6 @@ import { registerToday } from './commands/today';
 import { registerOnboarding } from './flows/onboarding';
 import { registerWorkout } from './flows/workout';
 import { registerNeck } from './flows/neck';
-import { registerMini } from './flows/mini';
 import { registerSettings } from './flows/settings';
 import { registerThemes } from './flows/themes';
 import { texts } from './ui/texts';
@@ -40,7 +39,6 @@ export function createBot(options: BotOptions): Bot {
   registerGif(bot, deps);
   registerWorkout(bot, deps);
   registerNeck(bot, deps);
-  registerMini(bot, deps);
   registerSettings(bot, deps);
   registerThemes(bot, deps);
   // Онбординг регистрируется последним: он ловит свободный текст и должен пропускать

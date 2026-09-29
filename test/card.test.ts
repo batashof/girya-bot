@@ -49,40 +49,57 @@ describe('карточка упражнения', () => {
     }
   });
 
-  it('называет упражнение, объём и время', () => {
+  it('называет упражнение, повторы и время на повтор', () => {
     const steps = toSteps(workoutFor(1));
     const row = steps.find((step) => step.item.exercise.code === 'RW1')!;
     const card = renderCard(steps, row.index, 2);
 
     expect(card).toContain('<b>Тяга одной рукой в наклоне</b>');
-    expect(card).toContain('Подход 2 из 3');
-    expect(card).toContain('3 подхода по 12 повторов на каждую сторону');
+    expect(card).toContain(`Подход 2 из ${row.sets} · сначала отдых ${row.item.restSec} с`);
+    expect(card).toContain(`🔁 ${row.item.target} повторов на каждую сторону`);
+    expect(card).toContain('⏱ Каждый повтор ~3 с: 1 с вверх, 2 с вниз');
     expect(card).toContain('Гиря 5 кг');
     expect(card).toMatch(/Осталось ~\d+ мин/);
   });
 
-  it('у удержания показывает секунды, а не повторы', () => {
+  it('у первого подхода отдыха нет', () => {
     const steps = toSteps(workoutFor(1));
-    const hold = steps.find((step) => step.item.unit === 'seconds')!;
-    const card = renderCard(steps, hold.index, 1);
-
-    expect(card).toContain('секунд удержания');
-    expect(card).not.toContain('повтор');
+    const row = steps.find((step) => step.item.exercise.code === 'RW1')!;
+    expect(renderCard(steps, row.index, 1)).not.toContain('отдых');
   });
 
-  it('всегда называет число подходов рядом с объёмом', () => {
-    // Иначе «30 секунд» — это число, а не задание: непонятно, сколько раз.
+  it('у удержания повтор — это сколько секунд держать', () => {
+    // «Шею назад держи 30 с», а не «10 повторов, ~20 с на подход» (ADR-017).
+    const steps = toSteps(workoutFor(1));
+    const hold = steps.find((step) => step.item.exercise.code === 'NK1')!;
+    const card = renderCard(steps, hold.index, 1);
+
+    expect(card).toContain(`⏱ Держи ${hold.item.target} с`);
+    expect(card).toMatch(/🔁 \d+ повтор/);
+  });
+
+  it('несколько удержаний подряд разделены короткой паузой', () => {
+    const steps = toSteps(workoutFor(3));
+    const hold = steps.find((step) => step.item.unit === 'seconds' && step.item.holds > 1)!;
+    const card = renderCard(steps, hold.index, 1);
+
+    expect(card).toContain(`🔁 ${hold.item.holds} повтор`);
+    expect(card).toContain(`Каждый повтор — держи ${hold.item.target} с`);
+  });
+
+  it('каждая карточка называет подход и повторы или время', () => {
     for (const card of allCards()) {
-      expect(card.text, card.code).toMatch(/🔁 (Один подход:|\d+ подход)/);
+      expect(card.text, card.code).toMatch(/Подход \d+ из \d+|Один подход/);
+      expect(card.text, card.code).toMatch(/🔁 \d+ (повтор|шаг)|⏱ .+ без остановки/);
+      expect(card.text, card.code).not.toContain('на подход');
     }
   });
 
-  it('раздаёт объём по сторонам, когда подход всего один', () => {
-    // «Один подход: 30 секунд на каждую сторону» читается как «всего 30 секунд».
-    const steps = toSteps(workoutFor(1));
-    const single = steps.find((step) => step.sets === 1 && step.item.unilateral)!;
-
-    expect(renderCard(steps, single.index, 1)).toContain('Один подход: по ');
+  it('в технике нет чисел, спорящих с заданием', () => {
+    for (const card of allCards()) {
+      const technique = card.text.split('Как делать:')[1] ?? '';
+      expect(technique, card.code).not.toMatch(/\d+\s*(секунд|сек|с\b|раз\b|повтор)/);
+    }
   });
 
   it('расшифровывает шкалу оценки: у кнопок нет подписей', () => {
@@ -112,7 +129,9 @@ describe('карточка упражнения', () => {
     const steps = toSteps(workoutFor(1));
     const row = steps.find((step) => step.item.exercise.code === 'RW1')!;
 
-    expect(renderDone(row, 'done')).toBe('✅ Тяга одной рукой в наклоне · 3×12');
+    expect(renderDone(row, 'done')).toBe(
+      `✅ Тяга одной рукой в наклоне · ${row.sets}×${row.item.target}`,
+    );
     expect(renderDone(row, 'pain')).toContain('🤕');
   });
 });

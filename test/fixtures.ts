@@ -16,7 +16,7 @@ import type {
   UserProfile,
 } from '../src/domain/types';
 
-type RawExercise = (typeof exercisesSeed)[number];
+type RawExercise = (typeof exercisesSeed)[number] & { rep_note?: string | null };
 type RawStep = {
   level: number;
   exercise: string;
@@ -26,6 +26,8 @@ type RawStep = {
   requires?: string | null;
   target_min: number;
   target_max: number;
+  rep_sec?: number;
+  rep_note?: string;
 };
 type RawItem = {
   protocol?: string;
@@ -35,6 +37,7 @@ type RawItem = {
   sets?: number;
   target_min?: number;
   target_max?: number;
+  holds?: number;
   rest_sec?: number;
   load_hint?: string | null;
   optional?: number;
@@ -58,6 +61,9 @@ export function loadExercises(): Map<string, Exercise> {
       videoUrl: null,
       neckSafe: raw.neck_safe === 1,
       swapGroup: raw.swap_group,
+      dose: { sets: raw.dose_sets, reps: raw.dose_reps, restSec: raw.dose_rest_sec },
+      repSec: raw.rep_sec,
+      repNote: raw.rep_note ?? null,
     });
   }
   return map;
@@ -80,6 +86,8 @@ export function loadChainSteps(): ChainStep[] {
         requires: (step.requires ?? null) as ChainStep['requires'],
         targetMin: step.target_min,
         targetMax: step.target_max,
+        repSec: step.rep_sec ?? null,
+        repNote: step.rep_note ?? null,
       });
     }
   }
@@ -100,6 +108,7 @@ export function loadTemplates(): DayTemplate[] {
       sets: item.sets ?? 1,
       targetMin: item.target_min ?? 0,
       targetMax: item.target_max ?? 0,
+      holds: item.holds ?? 1,
       restSec: item.rest_sec ?? 60,
       loadHint: (item.load_hint ?? null) as TemplateItem['loadHint'],
       optional: item.optional === 1,

@@ -16,6 +16,11 @@ interface ExerciseRow {
   video_url: string | null;
   neck_safe: number;
   swap_group: string;
+  dose_sets: number;
+  dose_reps: number;
+  dose_rest_sec: number;
+  rep_sec: number;
+  rep_note: string | null;
 }
 
 interface ChainStepRow {
@@ -28,6 +33,8 @@ interface ChainStepRow {
   requires: string | null;
   target_min: number;
   target_max: number;
+  rep_sec: number | null;
+  rep_note: string | null;
 }
 
 /** Справочник целиком: 61 строка, читать его по одной незачем. */
@@ -35,7 +42,8 @@ export async function loadExercises(db: D1Database): Promise<Map<string, Exercis
   const rows = await all<ExerciseRow>(
     db,
     `SELECT code, name, group_code, pattern, equipment, chain, chain_level,
-            unit, unilateral, cues, mistakes, video_url, neck_safe, swap_group
+            unit, unilateral, cues, mistakes, video_url, neck_safe, swap_group,
+            dose_sets, dose_reps, dose_rest_sec, rep_sec, rep_note
        FROM exercises`,
   );
 
@@ -56,6 +64,9 @@ export async function loadExercises(db: D1Database): Promise<Map<string, Exercis
       videoUrl: row.video_url,
       neckSafe: bool(row.neck_safe),
       swapGroup: row.swap_group,
+      dose: { sets: row.dose_sets, reps: row.dose_reps, restSec: row.dose_rest_sec },
+      repSec: row.rep_sec,
+      repNote: row.rep_note,
     });
   }
   return map;
@@ -64,7 +75,8 @@ export async function loadExercises(db: D1Database): Promise<Map<string, Exercis
 export async function loadChainSteps(db: D1Database): Promise<ChainStep[]> {
   const rows = await all<ChainStepRow>(
     db,
-    `SELECT chain, level, exercise_code, variant, tempo, load_hint, requires, target_min, target_max
+    `SELECT chain, level, exercise_code, variant, tempo, load_hint, requires, target_min, target_max,
+            rep_sec, rep_note
        FROM chain_steps
       ORDER BY chain, level`,
   );
@@ -79,5 +91,7 @@ export async function loadChainSteps(db: D1Database): Promise<ChainStep[]> {
     requires: row.requires as ChainStep['requires'],
     targetMin: row.target_min,
     targetMax: row.target_max,
+    repSec: row.rep_sec,
+    repNote: row.rep_note,
   }));
 }

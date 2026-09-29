@@ -5,18 +5,16 @@ import { minutesOfDay, type LocalMoment, type LocalTime } from './time';
  * по каждому пользователю, а платформенный код только рассылает результат.
  */
 
-export type ReminderKind =
-  'morning' | 'evening' | 'mini_midday' | 'mini_afternoon' | 'weekly_report';
+export type ReminderKind = 'morning' | 'evening' | 'weekly_report';
 
 export interface ReminderInput {
   moment: LocalMoment;
   remindAt: LocalTime;
   eveningPingAt: LocalTime | null;
-  miniReminders: boolean;
   /**
    * Утреннее напоминание и вечерний пинг — только в режиме `daily`. В режиме «по запросу»
    * тренировка начинается, когда захочется, и бот про программу дня не напоминает
-   * (ADR-016). Недельный отчёт и микро-блоки от режима не зависят.
+   * (ADR-016). Недельный отчёт от режима не зависит.
    */
   dailyReminders: boolean;
   /** Пауза по болезни или поездке: молчим совсем (docs/04). */
@@ -38,11 +36,6 @@ export interface ReminderInput {
 const WINDOW_MINUTES = 90;
 
 const SUNDAY = 7;
-
-const MINI_TIMES: Record<'mini_midday' | 'mini_afternoon', LocalTime> = {
-  mini_midday: '12:00',
-  mini_afternoon: '16:00',
-};
 
 export function dueReminders(input: ReminderInput): ReminderKind[] {
   if (isPaused(input)) {
@@ -79,18 +72,6 @@ export function dueReminders(input: ReminderInput): ReminderKind[] {
     inWindow(nowMinutes, minutesOfDay(input.eveningPingAt))
   ) {
     due.push('weekly_report');
-  }
-
-  // Микро-блоки — только в рабочие дни: на выходных человек и так не за столом.
-  if (input.miniReminders && input.moment.weekday <= 5) {
-    for (const [kind, time] of Object.entries(MINI_TIMES) as [
-      'mini_midday' | 'mini_afternoon',
-      LocalTime,
-    ][]) {
-      if (!input.alreadySent.has(kind) && inWindow(nowMinutes, minutesOfDay(time))) {
-        due.push(kind);
-      }
-    }
   }
 
   return due;

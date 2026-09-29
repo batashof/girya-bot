@@ -18,6 +18,7 @@ interface TemplateItemRow {
   sets: number;
   target_min: number;
   target_max: number;
+  holds: number;
   rest_sec: number;
   load_hint: string | null;
   optional: number;
@@ -37,7 +38,7 @@ export async function loadTemplateForWeekday(
   return template === null ? null : withItems(db, template);
 }
 
-/** Шаблон по коду: день восстановления и микро-блоки берутся именно так. */
+/** Шаблон по коду: день восстановления берётся именно так. */
 export async function loadTemplate(db: D1Database, code: string): Promise<DayTemplate | null> {
   const template = await one<TemplateRow>(
     db,
@@ -45,13 +46,6 @@ export async function loadTemplate(db: D1Database, code: string): Promise<DayTem
     code,
   );
   return template === null ? null : withItems(db, template);
-}
-
-export async function loadMiniBlocks(db: D1Database): Promise<{ code: string; title: string }[]> {
-  return all<{ code: string; title: string }>(
-    db,
-    `SELECT code, title FROM templates WHERE kind = 'mini' ORDER BY code`,
-  );
 }
 
 /** Темы тренировки по запросу в порядке меню (ADR-016). */
@@ -67,27 +61,11 @@ export async function loadThemes(db: D1Database): Promise<Theme[]> {
   );
 }
 
-/**
- * Все пункты шаблонов — откуда тема берёт подходы и отдых для упражнения. Сначала дни
- * недели, потом микро-блоки: у дня доза полноценная, у микро-блока урезанная.
- */
-export async function loadDoseItems(db: D1Database): Promise<TemplateItem[]> {
-  const rows = await all<TemplateItemRow>(
-    db,
-    `SELECT i.position, i.exercise_code, i.block, i.follow_chain, i.sets,
-            i.target_min, i.target_max, i.rest_sec, i.load_hint, i.optional
-       FROM template_items i
-       JOIN templates t ON t.code = i.template_code
-      ORDER BY CASE t.kind WHEN 'day' THEN 0 ELSE 1 END, t.weekday, t.code, i.position`,
-  );
-  return rows.map(toItem);
-}
-
 async function withItems(db: D1Database, template: TemplateRow): Promise<DayTemplate> {
   const items = await all<TemplateItemRow>(
     db,
     `SELECT position, exercise_code, block, follow_chain, sets,
-            target_min, target_max, rest_sec, load_hint, optional
+            target_min, target_max, holds, rest_sec, load_hint, optional
        FROM template_items
       WHERE template_code = ?
       ORDER BY position`,
@@ -114,6 +92,7 @@ function toItem(row: TemplateItemRow): TemplateItem {
     sets: row.sets,
     targetMin: row.target_min,
     targetMax: row.target_max,
+    holds: row.holds,
     restSec: row.rest_sec,
     loadHint: row.load_hint as TemplateItem['loadHint'],
     optional: bool(row.optional),

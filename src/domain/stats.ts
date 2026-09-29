@@ -10,6 +10,7 @@ import type { NeckScore } from './adaptation';
 
 export interface SessionSummary {
   date: LocalDate;
+  /** `mini` — микро-блоки из истории до ADR-017: в счётчики не входят, но и основной тренировкой не считаются. */
   kind: 'main' | 'mini' | 'theme';
   status: 'planned' | 'in_progress' | 'done' | 'skipped';
   minutes: number | null;
@@ -25,7 +26,6 @@ export interface WeekSummary {
   minutes: number;
   /** Средняя оценка шеи за неделю; null, если ни разу не спрашивали. */
   neckAverage: number | null;
-  miniCount: number;
   /** Тренировок по теме, закрытых кнопкой «Закончить» (ADR-016). */
   themeCount: number;
 }
@@ -68,8 +68,6 @@ export function summarizeRange(
     done: done.length,
     minutes: done.reduce((sum, session) => sum + (session.minutes ?? 0), 0),
     neckAverage: scores.length === 0 ? null : average(scores),
-    // Микро-сессии считаются отдельным счётчиком и в объём тренировок не входят (ADR-013).
-    miniCount: inRange.filter((session) => session.kind === 'mini').length,
     // Тренировки по теме тоже отдельно: они по запросу и в серию не входят (ADR-016).
     themeCount: inRange.filter((session) => session.kind === 'theme' && session.status === 'done')
       .length,

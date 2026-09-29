@@ -34,7 +34,6 @@ export function renderStats(options: {
     const neck = week.neckAverage === null ? '—' : week.neckAverage.toFixed(1);
     lines.push(
       `нед. ${week.isoWeek} · ${week.done}/7 · ${week.minutes} мин · шея ${neck}` +
-        (week.miniCount > 0 ? ` · мини ${week.miniCount}` : '') +
         (week.themeCount > 0 ? ` · по темам ${week.themeCount}` : ''),
     );
   }
@@ -107,7 +106,6 @@ export function renderWeeklyReport(options: {
     }
   }
 
-  lines.push(`Микро-блоков за неделю: ${week.miniCount}`);
   if (week.themeCount > 0) {
     lines.push(`Тренировок по теме: ${week.themeCount}`);
   }

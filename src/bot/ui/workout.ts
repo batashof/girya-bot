@@ -1,12 +1,6 @@
 import type { PlannedItem, Workout } from '../../domain/types';
-import {
-  remainingSeconds,
-  secondsPerSet,
-  setsBefore,
-  totalSets,
-  type WorkoutStep,
-} from '../../domain/session';
-import { estimateSeconds } from '../../domain/program';
+import { remainingSeconds, setsBefore, totalSets, type WorkoutStep } from '../../domain/session';
+import { BETWEEN_HOLDS_SEC, estimateSeconds, prescription } from '../../domain/program';
 import { plural } from './plural';
 
 /** Отрисовка тренировки текстом (docs/04-bot-ux.md). Разметка — HTML. */
@@ -136,10 +130,7 @@ export function renderCard(
       : [escapeHtml(header)];
   lines.push('', `<b>${escapeHtml(stepTitle(step))}</b>`);
 
-  if (step.sets > 1) {
-    lines.push(`Подход ${setIndex} из ${step.sets}`);
-  }
-  lines.push('', ...taskLines(step));
+  lines.push(setLine(step, setIndex), '', ...taskLines(step));
 
   const cues = cueLines(item.exercise.cues);
   if (cues.length > 0) {
@@ -158,49 +149,55 @@ export function renderCard(
 }
 
 /**
- * «Сколько делать» и «сколько это займёт» — две отдельные строки, потому что раньше
- * повторы, подходы и секунды удержания сливались в одну и различить их было нельзя.
+ * Где ты в упражнении. Подход назван всегда, даже единственный: без этого непонятно,
+ * делать ли задание ещё раз. Отдых — перед подходом, а не «между»: карточка следующего
+ * подхода приходит сразу после оценки предыдущего, и отдыхать нужно именно сейчас.
+ */
+function setLine(step: WorkoutStep, setIndex: number): string {
+  if (step.sets <= 1) {
+    return 'Один подход';
+  }
+  const rest =
+    setIndex > 1 && step.item.restSec > 0 ? ` · сначала отдых ${seconds(step.item.restSec)}` : '';
+  return `Подход ${setIndex} из ${step.sets}${rest}`;
+}
+
+/**
+ * Задание на подход — ровно две величины: сколько повторов и сколько секунд длится
+ * один повтор (ADR-017). Раньше рядом стояли ещё «примерно N с на подход» и секунды
+ * в технике, и числа не складывались друг с другом.
  */
 function taskLines(step: WorkoutStep): string[] {
   const { item } = step;
-  const lines: string[] = [];
+  const { reps, repSec, repNote, kind } = prescription(item);
   const side = item.unilateral ? ' на каждую сторону' : '';
+  const lines: string[] = [];
 
-  // Количество подходов стоит в той же строке, что и объём: «30 секунд» без «сколько раз»
-  // не задание, а число. Секунды удержания при этом остаются секундами, а не повторами.
-  // У одностороннего упражнения в один подход объём раздаётся предлогом «по», иначе
-  // «Один подход: 30 секунд на каждую сторону» читается как «всего 30 секунд».
-  const single = item.unilateral ? `по ${amount(item)}` : amount(item);
-  lines.push(
-    step.sets > 1
-      ? `🔁 ${step.sets} ${plural(step.sets, 'подход', 'подхода', 'подходов')} по ${amount(item)}${side}`
-      : `🔁 Один подход: ${single}${side}`,
-  );
-  // Оценка времени нужна там, где её не видно из задания: у удержания она и есть задание.
-  if (item.unit !== 'seconds') {
-    lines.push(`⏱ Примерно ${seconds(secondsPerSet(step))} на подход`);
+  if (kind === 'hold' && reps === 1 && repSec >= 90) {
+    // Прогулка или долгое удержание: «1 повтор по 30 минут» звучит как задача по физике.
+    lines.push(`⏱ ${seconds(repSec)} без остановки${side}`);
+  } else if (kind === 'hold') {
+    lines.push(`🔁 ${reps} ${plural(reps, 'повтор', 'повтора', 'повторов')}${side}`);
+    lines.push(
+      reps > 1
+        ? `⏱ Каждый повтор — держи ${seconds(repSec)}, между повторами пауза ${BETWEEN_HOLDS_SEC} с`
+        : `⏱ Держи ${seconds(repSec)}`,
+    );
+  } else {
+    const noun =
+      kind === 'steps'
+        ? plural(reps, 'шаг', 'шага', 'шагов')
+        : plural(reps, 'повтор', 'повтора', 'повторов');
+    const each = kind === 'steps' ? 'Каждый шаг' : 'Каждый повтор';
+    lines.push(`🔁 ${reps} ${noun}${side}`);
+    lines.push(`⏱ ${each} ~${repSec} с${repNote === null ? '' : `: ${escapeHtml(repNote)}`}`);
   }
 
   const load = loadLine(item);
   if (load !== '') {
     lines.push(`🏋️ ${escapeHtml(load)}`);
   }
-  // У шага в один подход строки про отдых нет: отдыхать не между чем.
-  if (step.sets > 1 && item.restSec > 0) {
-    lines.push(`⏸ Отдых между подходами ${seconds(item.restSec)}`);
-  }
   return lines;
-}
-
-function amount(item: PlannedItem): string {
-  switch (item.unit) {
-    case 'reps':
-      return `${item.target} ${plural(item.target, 'повтор', 'повтора', 'повторов')}`;
-    case 'steps':
-      return `${item.target} ${plural(item.target, 'шаг', 'шага', 'шагов')}`;
-    case 'seconds':
-      return `${item.target} ${plural(item.target, 'секунду', 'секунды', 'секунд')} удержания`;
-  }
 }
 
 function loadLine(item: PlannedItem): string {
@@ -208,7 +205,8 @@ function loadLine(item: PlannedItem): string {
   if (item.weight !== null) {
     parts.push(`Гиря ${formatWeight(item.weight)} кг`);
   }
-  const tempo = tempoLabel(item);
+  // Темп уже расшифрован в строке «Каждый повтор», дважды не нужно.
+  const tempo = item.repNote === null ? tempoLabel(item) : '';
   if (tempo !== '') {
     parts.push(tempo);
   }
@@ -223,9 +221,20 @@ export function renderDone(step: WorkoutStep, feedback: 'done' | 'skipped' | 'pa
 }
 
 function volume(step: WorkoutStep): string {
-  const { item } = step;
-  const target = item.unit === 'seconds' ? `${item.target} с` : String(item.target);
-  return step.sets > 1 ? `${step.sets}×${target}` : target;
+  return formatVolume(step.item);
+}
+
+/** «3×15», «2×3×20 с» (подходы × удержания × секунды), «30 мин». Единица подход не пишется. */
+function formatVolume(item: PlannedItem): string {
+  const parts: string[] = [];
+  if (item.sets > 1) {
+    parts.push(String(item.sets));
+  }
+  if (item.unit === 'seconds' && item.holds > 1) {
+    parts.push(String(item.holds));
+  }
+  parts.push(formatTarget(item));
+  return parts.join('×');
 }
 
 /**
@@ -286,7 +295,7 @@ export function renderItem(item: PlannedItem): string {
   const side = item.unilateral ? ' / сторону' : '';
   const tempo = tempoLabel(item);
   const suffix = tempo === '' ? '' : `, ${tempo}`;
-  return `${name}${weight}${suffix} — ${item.sets}×${formatTarget(item)}${side}`;
+  return `${name}${weight}${suffix} — ${formatVolume(item)}${side}`;
 }
 
 function formatTarget(item: PlannedItem): string {
@@ -294,7 +303,7 @@ function formatTarget(item: PlannedItem): string {
     case 'reps':
       return String(item.target);
     case 'seconds':
-      return item.target >= 60 ? `${Math.round(item.target / 60)} мин` : `${item.target} с`;
+      return seconds(item.target);
     case 'steps':
       return `${item.target} шагов`;
   }
