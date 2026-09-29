@@ -13,6 +13,7 @@ import { neckKeyboard } from '../bot/flows/neck';
 import { buttons, texts } from '../bot/ui/texts';
 import { renderWorkout } from '../bot/ui/workout';
 import { renderWeeklyReport } from '../bot/ui/stats';
+import { syncCommands } from './commands';
 import { readConfig, type Env } from './env';
 
 /**
@@ -23,6 +24,13 @@ export async function handleScheduled(_event: ScheduledController, env: Env): Pr
   const config = readConfig(env);
   const api = new Api(config.botToken);
   const now = new Date();
+
+  try {
+    await syncCommands(env.DB, api, config.ownerId);
+  } catch (failure) {
+    // Меню — удобство, а не функция: из-за него напоминания не должны ломаться.
+    console.error('меню команд не обновилось', failure);
+  }
 
   for (const user of await allUsers(env.DB)) {
     try {

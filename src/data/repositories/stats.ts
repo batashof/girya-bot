@@ -1,4 +1,4 @@
-import { all, run } from '../db';
+import { all, one, run } from '../db';
 import { isNeckScore } from '../../domain/adaptation';
 import type { SessionSummary } from '../../domain/stats';
 
@@ -37,6 +37,16 @@ export async function loadSessionSummaries(
 }
 
 /** Минимальный аудит: что и когда бот посчитал изменившимся (docs/02-architecture.md). */
+/** Payload последнего события этого вида — как он был записан, строкой JSON. */
+export async function lastEventPayload(db: D1Database, kind: string): Promise<string | null> {
+  const row = await one<{ payload: string | null }>(
+    db,
+    `SELECT payload FROM events WHERE kind = ? ORDER BY id DESC LIMIT 1`,
+    kind,
+  );
+  return row?.payload ?? null;
+}
+
 export async function logEvent(
   db: D1Database,
   telegramId: number,

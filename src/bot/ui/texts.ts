@@ -283,6 +283,28 @@ export const texts = {
   },
 };
 
+/**
+ * Меню команд Telegram (кнопка «/» у поля ввода). Бот выставляет его сам через
+ * `setMyCommands` на первом cron после деплоя (src/platform/commands.ts), поэтому
+ * новая команда появляется в меню, как только попала сюда, а не в @BotFather руками.
+ */
+export const menuCommands = [
+  { command: 'train', description: 'Выбрать тренировку: программа дня, тема или комплекс' },
+  { command: 'today', description: 'Тренировка на сегодня' },
+  { command: 'go', description: 'Пройти тренировку дня пошагово' },
+  { command: 'pain', description: 'Отметить боль в шее' },
+  { command: 'swap', description: 'Заменить упражнение' },
+  { command: 'skip', description: 'Пропустить сегодня' },
+  { command: 'stats', description: 'Статистика и тренд по шее' },
+  { command: 'streak', description: 'Серия и рекорд' },
+  { command: 'settings', description: 'Настройки' },
+  { command: 'pause', description: 'Пауза на N дней: /pause 3' },
+  { command: 'gif', description: 'Своя гифка вместо схемы: /gif PR3' },
+  { command: 'export', description: 'Выгрузить логи в CSV' },
+  { command: 'help', description: 'Справка' },
+  { command: 'start', description: 'Настроить заново' },
+];
+
 export const buttons = {
   timezoneOther: 'Другой',
   remindOther: 'Другое',
