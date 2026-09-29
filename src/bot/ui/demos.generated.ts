@@ -179,7 +179,7 @@ export const BUILTIN_DEMO_DIGESTS: Record<string, string> = {
   CR7: '3416a26052b68fdc',
   CR8: '43b3831bde3f0a38',
   MB1: 'e1097054b87b86cc',
-  MB2: '8cc2c78455edb119',
+  MB2: '3040a3b09e7c537d',
   MB3: '20180ae8781bfbfd',
   MB4: 'c65da699adad2133',
   MB5: '65f04232aba1b743',
