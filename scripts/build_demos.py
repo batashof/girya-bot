@@ -2000,36 +2000,145 @@ def side_plank(canvas: Canvas, t: float) -> None:
         canvas.arrow((pelvis[0], pelvis[1] - 0.30), (pelvis[0], pelvis[1] - 0.12))
 
 
-def open_book(canvas: Canvas, t: float) -> None:
-    """MB2. Вид со стороны головы: лёжа на боку, верхняя рука дугой уходит назад, грудь за ней.
+Point3 = tuple[float, float, float]
 
-    Колени стоят друг на друге и не двигаются, нижняя рука лежит на полу — они бледные.
+
+class Ortho:
+    """Параллельная проекция 3D-сцены: камера сверху-сбоку, пол — в перспективе.
+
+    Нужна там, где плоский силуэт врёт: лежащий на боку сверху совпадает с
+    четвереньками, повёрнутый — с сидящим. В косом ракурсе пол виден как пол.
+    Координаты: x вдоль тела к голове, y назад (к спине), z вверх от пола.
+    """
+
+    def __init__(self, azimuth: float, elevation: float) -> None:
+        az, el = math.radians(azimuth), math.radians(elevation)
+        self.toward = (math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el))
+        f = tuple(-c for c in self.toward)
+        right = (f[1], -f[0], 0.0)
+        norm = math.hypot(right[0], right[1]) or 1.0
+        self.right = (right[0] / norm, right[1] / norm, 0.0)
+        r = self.right
+        self.up = (r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0])
+
+    def __call__(self, p: Point3) -> Point:
+        return (sum(a * b for a, b in zip(p, self.right)), sum(a * b for a, b in zip(p, self.up)))
+
+    def depth(self, *points: Point3) -> float:
+        """Чем больше, тем ближе к камере: рисуется позже."""
+        return sum(sum(a * b for a, b in zip(p, self.toward)) for p in points) / len(points)
+
+
+def v3(a: Point3, b: Point3, k: float = 1.0) -> Point3:
+    return (a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k)
+
+
+def around_spine(v: Point3, angle: float) -> Point3:
+    """Поворот вокруг оси позвоночника (x): грудь от «вперёд» (−y) к потолку (+z)."""
+    return (v[0], v[1] * math.cos(angle) + v[2] * math.sin(angle), -v[1] * math.sin(angle) + v[2] * math.cos(angle))
+
+
+OPEN_BOOK_VIEW = Ortho(azimuth=-38.0, elevation=40.0)
+
+
+def open_book(canvas: Canvas, t: float) -> None:
+    """MB2. Лёжа на боку, колени стоят; верхняя рука дугой уходит назад, грудь раскрывается за ней.
+
+    Камера сверху со стороны головы: коврик виден полом, дуга руки — дугой, а таз
+    и колени остаются боком, пока грудь разворачивается к потолку. Сцена — в трёх
+    измерениях, по одной точке на сустав; дальние части рисуются раньше ближних.
     """
     k = rep(t, 0.34, 0.16, 0.34)
-    kc = rep(t, 0.34, 0.16, 0.34, lag=0.04)
-    reach = lerp(12.0, 186.0, k)
-    chest = lerp(0.0, 80.0, kc)
-    bottom = (0.0, 0.07)
-    top = add(bottom, rot((0.0, 1.0), chest), 2 * SHOULDER_W)
-    center = lerp_pt(bottom, top, 0.5)
-    # Бёдра согнуты вперёд и лежат друг на друге, голени уходят от камеры.
-    canvas.limb((0.02, 0.10), (0.40, 0.10), THIGH_R, PANTS_FAR)
-    canvas.limb((0.02, 0.25), (0.40, 0.25), THIGH_R, PANTS_FAR)
-    draw_arm(canvas, bottom, (0.64, 0.05), FAR, elbow=(0.32, 0.05))
-    canvas.oval(center, 0.11, SHOULDER_W + 0.05, chest, SHIRT)
-    # Голова ближе всего к камере: видна макушка, а лицо — полумесяцем туда, куда смотрит.
-    look = rot((1.0, 0.0), chest + lerp(0.0, 40.0, k))
-    head = add(center, look, 0.02)
-    canvas.disc(head, HEAD_R, HAIR)
-    face = [add(head, rot(look, a), HEAD_R) for a in range(-70, 71, 10)]
-    face += [add(head, rot(look, a), HEAD_R * 0.45) for a in range(70, -71, -10)]
-    canvas.poly(face, SKIN)
-    canvas.disc(add(head, look, HEAD_R * 1.02), 0.024, SKIN)
-    wrist = polar(top, reach, ARM * 0.97)
-    wrist = (wrist[0], max(0.05, wrist[1]))
-    draw_arm(canvas, top, wrist, NEAR, elbow=lerp_pt(top, wrist, 0.52), gap=0.014)
-    if 0.12 < t < 0.45:
-        canvas.arrow((0.36, 0.98), (-0.36, 0.98))
+    # Грудь догоняет руку, а голова — грудь: взгляд следует за рукой.
+    chest = math.radians(lerp(0.0, 78.0, rep(t, 0.34, 0.16, 0.34, lag=0.03)))
+    gaze = math.radians(lerp(0.0, 140.0, rep(t, 0.34, 0.16, 0.34, lag=0.05)))
+    # В начале верхняя рука лежит на нижней: направлена вперёд и вниз, к полу.
+    reach = math.radians(lerp(-34.0, 176.0, k))
+    view = OPEN_BOOK_VIEW
+
+    corners = [(-1.02, -0.74, 0.0), (0.68, -0.74, 0.0), (0.68, 0.62, 0.0), (-1.02, 0.62, 0.0)]
+    canvas.poly([view(p) for p in corners], SHADOW)
+
+    hip_low, hip_top = (-0.40, 0.0, 0.08), (-0.40, 0.0, 0.26)
+    center = (0.18, 0.0, 0.05 + SHOULDER_W * math.cos(chest))
+    shoulder_top = v3(center, around_spine((0.0, 0.0, SHOULDER_W), chest))
+    shoulder_low = v3(center, around_spine((0.0, 0.0, -SHOULDER_W), chest))
+    head = (0.44, 0.0, center[2] * 0.8 + 0.02)
+    face = around_spine((0.0, -1.0, 0.0), gaze)
+    direction = around_spine((0.0, -1.0, 0.0), reach)
+    hand = v3(shoulder_top, direction, ARM * 0.97)
+    hand = (hand[0], hand[1], max(0.05, hand[2]))
+
+    items: list[tuple[float, Callable[[], None]]] = []
+
+    def leg(hip: Point3, knee: Point3, ankle: Point3, tone: Tone) -> None:
+        def draw() -> None:
+            canvas.limb(view(knee), view(ankle), SHIN_R, tone.pants)
+            canvas.limb(view(hip), view(knee), THIGH_R, tone.pants)
+            canvas.limb(view(ankle), view(v3(ankle, (-0.14, 0.0, -0.02))), FOOT_R, tone.shoe)
+
+        items.append((view.depth(hip, knee, ankle), draw))
+
+    # Колени согнуты под прямым углом вперёд и лежат друг на друге.
+    leg(hip_low, (-0.36, -0.42, 0.06), (-0.80, -0.44, 0.05), FAR)
+    leg(hip_top, (-0.36, -0.42, 0.18), (-0.80, -0.44, 0.16), NEAR)
+
+    def torso() -> None:
+        quad = [hip_low, shoulder_low, shoulder_top, hip_top]
+        canvas.poly([view(p) for p in quad], SHIRT)
+        for a, b in ((hip_low, shoulder_low), (hip_top, shoulder_top)):
+            canvas.limb(view(a), view(b), [(0.0, 0.09), (1.0, 0.075)], SHIRT)
+        waist = [hip_low, lerp3(hip_low, shoulder_low, WAIST_S), lerp3(hip_top, shoulder_top, WAIST_S), hip_top]
+        canvas.poly([view(p) for p in waist], PANTS)
+        canvas.limb(view(hip_low), view(hip_top), [(0.0, 0.08), (1.0, 0.08)], PANTS)
+
+    items.append((view.depth(hip_low, hip_top, shoulder_low, shoulder_top), torso))
+
+    def bottom_arm() -> None:
+        draw_arm(canvas, view(shoulder_low), view((0.24, -0.60, 0.04)), FAR, elbow=view((0.22, -0.32, 0.04)))
+
+    items.append((view.depth(shoulder_low, (0.24, -0.60, 0.04)), bottom_arm))
+
+    def head_and_neck() -> None:
+        canvas.limb(view(center), view(head), [(0.0, 0.045), (1.0, 0.04)], SKIN)
+        c = view(head)
+        canvas.disc(c, HEAD_R, HAIR)
+        facing = sum(a * b for a, b in zip(face, view.toward))
+        if facing > -0.3:
+            # Лицо — кружок кожи, сдвинутый туда, куда оно смотрит: анфас — в центре, в профиль — с краю.
+            f = view(v3(head, face, HEAD_R * 0.5))
+            canvas.disc(f, HEAD_R * 0.80, SKIN)
+            nose = view(v3(head, face, HEAD_R * 1.02))
+            canvas.disc(nose, 0.024, SKIN)
+            if facing > 0.25:
+                side = (0.0, face[2], -face[1])
+                for sign in (-1, 1):
+                    eye = view(v3(v3(head, face, HEAD_R * 0.75), side, sign * HEAD_R * 0.36))
+                    canvas.disc(eye, 0.013, INK)
+
+    items.append((view.depth(head), head_and_neck))
+
+    def top_arm() -> None:
+        # Тень на коврике: рука оторвана от пола тем сильнее, чем ближе к потолку.
+        canvas.limb(view((shoulder_top[0], shoulder_top[1], 0.0)), view((hand[0], hand[1], 0.0)), FOREARM_R, MUTED)
+        draw_arm(canvas, view(shoulder_top), view(hand), NEAR, elbow=view(lerp3(shoulder_top, hand, 0.52)), gap=0.014)
+
+    items.append((view.depth(shoulder_top, hand) + 0.05, top_arm))
+
+    for _, draw in sorted(items, key=lambda item: item[0]):
+        draw()
+
+    if 0.14 < t < 0.44:
+        # Дуга над рукой: вперёд по полу → в потолок → назад на пол.
+        pivot = (0.18, 0.0, 0.05 + SHOULDER_W)
+        arc = [view(v3(pivot, around_spine((0.0, -1.0, 0.0), math.radians(a)), ARM + 0.16)) for a in range(60, 161, 10)]
+        for a, b in zip(arc, arc[1:-1]):
+            canvas.bone(a, b, 0.024, ACCENT)
+        canvas.arrow(arc[-2], arc[-1])
+
+
+def lerp3(a: Point3, b: Point3, k: float) -> Point3:
+    return (lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k))
 
 
 # --- Реестр -----------------------------------------------------------------
@@ -2110,7 +2219,7 @@ DEMOS: dict[str, Demo] = {
     "CR8": Demo("Переноска рюкзака", figure(backpack_carry), STAND),
     # Мобильность
     "MB1": Demo("Грудной отдел на полотенце", towel_extension, LYING),
-    "MB2": Demo("Open book", open_book, Camera(origin_x=0.52, origin_y=0.72, zoom=1.05)),
+    "MB2": Demo("Open book", open_book, Camera(origin_x=0.565, origin_y=0.45, zoom=1.0, ground=False)),
     "MB3": Demo("Cat-cow", figure(cat_cow), Camera(origin_x=0.52, origin_y=0.8, zoom=0.82)),
     "MB4": Demo("Растяжка груди в проёме", doorway_stretch, Camera(origin_x=0.46, zoom=0.9)),
     "MB5": Demo("World's greatest stretch", figure(worlds_greatest), Camera(origin_x=0.52, origin_y=0.84, zoom=0.82)),
